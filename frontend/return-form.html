@@ -188,7 +188,7 @@
 </main>
 
 <script>
-  const API   = 'http://localhost:5000/api/returns';
+  const API   = 'https://device-return-tracker.onrender.com/api/returns';
   const token = localStorage.getItem('token');
   const user  = JSON.parse(localStorage.getItem('user') || 'null');
     if (!token || !user) window.location.href = 'login.html';
@@ -231,7 +231,7 @@
     setStatus('🔍 Looking up device...', 'var(--text-1)');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/returns/booking-lookup?serial=${encodeURIComponent(scannedSerial)}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`https://device-return-tracker.onrender.com/api/returns/booking-lookup?serial=${encodeURIComponent(scannedSerial)}`, { headers: { 'Authorization': `Bearer ${token}` } });
       const json = await res.json();
       if(res.ok && json.success && json.data) {
         currentBooking = json.data;
@@ -349,7 +349,7 @@
           const formData = new FormData();
           formData.append('photo', fileInput.files[i]);
           formData.append('description', 'Auto-uploaded from Return Form');
-          await fetch(`http://localhost:5000/api/upload/damage/${recordId}`, {
+          await fetch(`https://device-return-tracker.onrender.com/api/upload/damage/${recordId}`, {
             method: 'POST',
             headers: { 'Authorization':`Bearer ${token}` },
             body: formData
@@ -361,7 +361,7 @@
       const runAi = document.getElementById('f-run-ai').checked;
       if (runAi) {
         btn.textContent = '🤖 Generating AI Summary…';
-        await fetch(`http://localhost:5000/api/ai/auto-fill/${recordId}`, { method:'POST', headers: { 'Authorization':`Bearer ${token}` } });
+        await fetch(`https://device-return-tracker.onrender.com/api/ai/auto-fill/${recordId}`, { method:'POST', headers: { 'Authorization':`Bearer ${token}` } });
       }
 
       // 4. Success

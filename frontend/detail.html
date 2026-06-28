@@ -71,7 +71,7 @@
   }
   function doLogout() { localStorage.clear(); window.location.href = 'login.html'; }
   const H   = () => ({ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` });
-  const API = 'http://localhost:5000/api';
+  const API = 'https://device-return-tracker.onrender.com/api';
   const urlParams = new URLSearchParams(window.location.search);
   const recordId  = urlParams.get('id');
 

@@ -150,7 +150,7 @@
 <div id="toast"></div>
 </main>
 <script>
-  const API   = 'http://localhost:5000/api/maintenance';
+  const API   = 'https://device-return-tracker.onrender.com/api/maintenance';
   const token = localStorage.getItem('token');
   const user  = JSON.parse(localStorage.getItem('user') || 'null');
     if (!token || !user) window.location.href = 'login.html';
@@ -174,7 +174,7 @@
 
   async function loadDropdowns() {
     try {
-      const res = await fetch('http://localhost:5000/api/bookings/devices', { headers: {'Authorization':`Bearer ${token}`} });
+      const res = await fetch('https://device-return-tracker.onrender.com/api/bookings/devices', { headers: {'Authorization':`Bearer ${token}`} });
       const json = await res.json();
       if (json.success) {
         document.getElementById('f-device').innerHTML = '<option value="">— Select device —</option>' + json.data.map(d=>`<option value="${d.id}">${d.device_name} — ${d.serial_number}</option>`).join('');

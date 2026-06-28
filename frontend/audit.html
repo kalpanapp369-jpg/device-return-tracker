@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Audit Log — Device Return Tracker</title>
+  <link rel="stylesheet" href="style.css"/>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+</head>
+<body>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <div class="brand-icon">📦</div>
+    Device Returns
+  </a>
+  
+  <div class="user-chip">
+    <div class="avatar" id="user-avatar">?</div>
+    <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;" id="user-name">…</div>
+  </div>
+
+    <div class="nav-links">
+    <a class="nav-link" href="index.html">🏠 Dashboard</a>
+    <a class="nav-link" href="bookings.html">📝 Rental Bookings</a>
+    <a class="nav-link" href="return-form.html">📦 Return Form</a>
+    <a class="nav-link" href="analytics.html">📊 Analytics</a>
+    <a class="nav-link" href="kyc.html">📋 KYC</a>
+    <a class="nav-link" href="logistics.html">🚚 Logistics</a>
+    <a class="nav-link" href="maintenance.html">🔧 Maintenance</a>
+    <a class="nav-link" href="qr-scan.html">📷 QR Scan</a>
+    <a class="nav-link admin-only" href="admin.html" style="display:none">⚙️ Admin</a>
+    <a class="nav-link admin-only active" href="audit.html" style="display:none">📋 Audit</a>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="theme-toggle-btn" onclick="toggleTheme()">🌓 Toggle Theme</button>
+    <button class="btn-logout" onclick="doLogout()">🚪 Logout</button>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+
+<div class="page-inner" id="main-content" style="display:none">
+  <div class="page-header"><div><div class="page-title">📋 Audit Log</div><div class="page-subtitle">Every action tracked · Admin only</div></div></div>
+
+  <div class="card anim-fade-in-up">
+    <div class="toolbar">
+      <div class="search-wrap"><span class="search-icon">👤</span><input type="text" id="filter-user" placeholder="Filter by user…" oninput="debounce()"/></div>
+      <select class="fs" id="filter-action" onchange="loadAudit(1)">
+        <option value="">All Actions</option>
+        <option value="CREATE">CREATE</option><option value="UPDATE">UPDATE</option><option value="DELETE">DELETE</option>
+        <option value="APPROVE">APPROVE</option><option value="REJECT">REJECT</option><option value="SETTLE">SETTLE</option><option value="LOGIN">LOGIN</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Time</th><th>User</th><th>Action</th><th>Table</th><th>Record</th><th>IP</th><th>Changes</th></tr></thead>
+        <tbody id="audit-body"><tr><td colspan="8"><div class="table-empty"><span class="empty-icon">⏳</span><p>Loading…</p></div></td></tr></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination" style="display:none"><div class="pagination-info" id="pg-info"></div><div class="pagination-btns" id="pg-btns"></div></div>
+  </div>
+</div>
+
+<div class="page access-denied" id="denied-content" style="display:none">
+  <div class="icon">🔒</div><h2 style="font-size:22px;margin-bottom:10px">Admin Access Required</h2><p style="color:var(--text-2);margin-bottom:20px">Audit logs are admin-only.</p>
+  <a href="index.html" class="btn btn-primary">← Back to Dashboard</a>
+</div>
+
+<div id="toast"></div>
+</main>
+<script>
+  const token=localStorage.getItem('token'), user=JSON.parse(localStorage.getItem('user')||'null');
+    if (!token || !user) window.location.href = 'login.html';
+  const unameEl = document.getElementById('user-name');
+  if (unameEl) unameEl.textContent = user?.name || '';
+  const uavatarEl = document.getElementById('user-avatar');
+  if (uavatarEl) uavatarEl.textContent = (user?.name||'?').charAt(0).toUpperCase();
+  if (user?.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+  }
+  function doLogout(){localStorage.clear();window.location.href='login.html';}
+  const API='http://localhost:5000/api/audit';
+  let debTimer=null;
+  function debounce(){clearTimeout(debTimer);debTimer=setTimeout(()=>loadAudit(1),400);}
+
+  if(user?.role!=='admin'){document.getElementById('denied-content').style.display='block';}
+  else{document.getElementById('main-content').style.display='block';loadAudit(1);}
+
+  async function loadAudit(page=1){
+    const action=document.getElementById('filter-action').value, u=document.getElementById('filter-user').value.trim();
+    const params=new URLSearchParams({page,limit:20});
+    if(action)params.set('action',action); if(u)params.set('user',u);
+    try{
+      const res=await fetch(`${API}?${params}`,{headers:{'Authorization':`Bearer ${token}`}});
+      if(res.status===401){doLogout();return;}
+      const json=await res.json(); if(!json.success) throw new Error(json.message);
+      renderTable(json.data); renderPagination(json,page);
+    }catch(err){document.getElementById('audit-body').innerHTML=`<tr><td colspan="8"><div class="table-empty"><span class="empty-icon">⚠️</span><p style="color:var(--danger)">${err.message}</p></div></td></tr>`;}
+  }
+
+  function renderTable(rows){
+    const tb=document.getElementById('audit-body');
+    if(!rows.length){tb.innerHTML='<tr><td colspan="8"><div class="table-empty"><span class="empty-icon">📋</span><p>No audit records yet.</p></div></td></tr>';return;}
+    tb.innerHTML=rows.map((r,i)=>{
+      let changes='—';
+      if(r.new_data&&r.old_data){
+        try{const o=typeof r.old_data==='string'?JSON.parse(r.old_data):r.old_data, n=typeof r.new_data==='string'?JSON.parse(r.new_data):r.new_data;
+          const diffs=Object.keys(n).filter(k=>k!=='updated_at'&&JSON.stringify(o[k])!==JSON.stringify(n[k]));
+          changes=diffs.length?diffs.slice(0,3).join(', ')+(diffs.length>3?'…':''):'No changes';}catch(e){changes='—';}
+      } else if(r.new_data){changes='New record';} else if(!r.new_data&&r.old_data){changes='Deleted';}
+      return `<tr class="anim-fade-in-up" style="animation-delay:${i*0.02}s">
+        <td style="color:var(--text-3)">#${r.id}</td>
+        <td style="white-space:nowrap;font-size:12px">${new Date(r.created_at).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
+        <td><strong>${r.user_name||'System'}</strong></td>
+        <td><span class="action-badge action-${r.action}">${r.action}</span></td>
+        <td style="font-size:12px;color:var(--text-2)">${r.table_name||'—'}</td>
+        <td style="font-size:12px">${r.record_id?`#${r.record_id}`:'—'}</td>
+        <td style="font-size:11px;color:var(--text-3)">${r.ip_address||'—'}</td>
+        <td class="diff-view" title="${changes}">${changes}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderPagination(json,page){
+    const pg=document.getElementById('pagination');
+    if(json.totalPages<=1){pg.style.display='none';return;}
+    pg.style.display='flex';
+    document.getElementById('pg-info').textContent=`Page ${page} of ${json.totalPages} (${json.total} entries)`;
+    let btns=`<button class="page-btn" onclick="loadAudit(${page-1})" ${page===1?'disabled':''}>‹</button>`;
+    const s=Math.max(1,page-2),e=Math.min(json.totalPages,page+2);
+    for(let i=s;i<=e;i++) btns+=`<button class="page-btn${i===page?' active':''}" onclick="loadAudit(${i})">${i}</button>`;
+    btns+=`<button class="page-btn" onclick="loadAudit(${page+1})" ${page===json.totalPages?'disabled':''}>›</button>`;
+    document.getElementById('pg-btns').innerHTML=btns;
+  }
+  function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;setTimeout(()=>{t.className='';},3000);}
+</script>
+
+<script>
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    if (newTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('theme', newTheme);
+  }
+</script>
+</body>
+</html>

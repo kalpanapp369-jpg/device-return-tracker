@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Maintenance Tracker — Device Return Tracker</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <div class="brand-icon">📦</div>
+    Device Returns
+  </a>
+  
+  <div class="user-chip">
+    <div class="avatar" id="user-avatar">?</div>
+    <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;" id="user-name">…</div>
+  </div>
+
+    <div class="nav-links">
+    <a class="nav-link" href="index.html">🏠 Dashboard</a>
+    <a class="nav-link" href="bookings.html">📝 Rental Bookings</a>
+    <a class="nav-link" href="return-form.html">📦 Return Form</a>
+    <a class="nav-link" href="analytics.html">📊 Analytics</a>
+    <a class="nav-link" href="kyc.html">📋 KYC</a>
+    <a class="nav-link" href="logistics.html">🚚 Logistics</a>
+    <a class="nav-link active" href="maintenance.html">🔧 Maintenance</a>
+    <a class="nav-link" href="qr-scan.html">📷 QR Scan</a>
+    <a class="nav-link admin-only" href="admin.html" style="display:none">⚙️ Admin</a>
+    <a class="nav-link admin-only" href="audit.html" style="display:none">📋 Audit</a>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="theme-toggle-btn" onclick="toggleTheme()">🌓 Toggle Theme</button>
+    <button class="btn-logout" onclick="doLogout()">🚪 Logout</button>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+
+<div class="page-inner">
+  <div class="page-header">
+    <div class="page-title">🔧 Maintenance Tracker</div>
+    <button class="btn btn-primary" onclick="openAddModal()">+ New Job</button>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-label">Total Jobs</div><div class="stat-value blue" id="stat-total">—</div></div>
+    <div class="stat-card"><div class="stat-label">Open / In Progress</div><div class="stat-value orange" id="stat-open">—</div></div>
+    <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value green" id="stat-done">—</div></div>
+    <div class="stat-card"><div class="stat-label">Total Repair Cost</div><div class="stat-value red" id="stat-cost">—</div></div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <select class="fs" id="filter-status" onchange="loadMaintenance()">
+        <option value="">All Statuses</option>
+        <option value="Open">Open</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Completed">Completed</option>
+        <option value="On Hold">On Hold</option>
+      </select>
+      <select class="fs" id="filter-priority" onchange="filterByPriority()">
+        <option value="">All Priorities</option>
+        <option value="Critical">Critical</option>
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+      </select>
+    </div>
+    <div class="jobs-grid" id="jobs-grid">
+      <div style="grid-column:1/-1"><div class="table-empty"><div class="icon">⏳</div><p>Loading maintenance jobs…</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-backdrop" id="form-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="modal-title">New Maintenance Job</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id"/>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="f-device">Device <span class="req">*</span></label>
+          <select id="f-device">
+            <option value="">— Select device —</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label for="f-issue">Issue Description <span class="req">*</span></label>
+          <textarea id="f-issue" placeholder="Describe the issue in detail…"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="f-tech">Assigned Technician</label>
+          <input type="text" id="f-tech" placeholder="Technician name…"/>
+        </div>
+        <div class="form-group">
+          <label for="f-priority">Priority</label>
+          <select id="f-priority">
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+            <option value="Critical">Critical</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="f-est-cost">Estimated Cost (₹)</label>
+          <input type="number" id="f-est-cost" placeholder="0.00" min="0" step="0.01"/>
+        </div>
+        <div class="form-group">
+          <label for="f-act-cost">Actual Cost (₹)</label>
+          <input type="number" id="f-act-cost" placeholder="0.00" min="0" step="0.01"/>
+        </div>
+        <div class="form-group">
+          <label for="f-status">Status</label>
+          <select id="f-status">
+            <option value="Open">Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="On Hold">On Hold</option>
+          </select>
+        </div>
+        <div class="form-group full" id="resolution-group" style="display:none">
+          <label for="f-resolution">Resolution Notes</label>
+          <textarea id="f-resolution" placeholder="How was the issue resolved?…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="submit-btn" onclick="submitJob()">Save Job</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+</main>
+<script>
+  const API   = 'http://localhost:5000/api/maintenance';
+  const token = localStorage.getItem('token');
+  const user  = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) window.location.href = 'login.html';
+  const unameEl = document.getElementById('user-name');
+  if (unameEl) unameEl.textContent = user?.name || '';
+  const uavatarEl = document.getElementById('user-avatar');
+  if (uavatarEl) uavatarEl.textContent = (user?.name||'?').charAt(0).toUpperCase();
+  if (user?.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+  }
+  function doLogout() { localStorage.clear(); window.location.href = 'login.html'; }
+  const H = () => ({ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` });
+
+  let allRecords=[], editMode=false;
+
+  document.addEventListener('DOMContentLoaded', () => { loadDropdowns(); loadMaintenance(); });
+  document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+  document.getElementById('f-status').addEventListener('change', function() {
+    document.getElementById('resolution-group').style.display = this.value==='Completed' ? '' : 'none';
+  });
+
+  async function loadDropdowns() {
+    try {
+      const res = await fetch('http://localhost:5000/api/bookings/devices', { headers: {'Authorization':`Bearer ${token}`} });
+      const json = await res.json();
+      if (json.success) {
+        document.getElementById('f-device').innerHTML = '<option value="">— Select device —</option>' + json.data.map(d=>`<option value="${d.id}">${d.device_name} — ${d.serial_number}</option>`).join('');
+      }
+    } catch(e) {}
+  }
+
+  async function loadMaintenance() {
+    const status = document.getElementById('filter-status').value;
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    try {
+      const res  = await fetch(`${API}?${params}`, { headers: {'Authorization':`Bearer ${token}`} });
+      if (res.status===401) { doLogout(); return; }
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+      allRecords = json.data;
+      renderStats(allRecords);
+      renderJobs(allRecords);
+    } catch(err) {
+      document.getElementById('jobs-grid').innerHTML=`<div style="grid-column:1/-1"><div class="table-empty"><div class="icon">⚠️</div><p style="color:#dc2626">${err.message}</p></div></div>`;
+    }
+  }
+
+  function filterByPriority() {
+    const p = document.getElementById('filter-priority').value;
+    renderJobs(p ? allRecords.filter(r=>r.priority===p) : allRecords);
+  }
+
+  function renderStats(data) {
+    document.getElementById('stat-total').textContent = data.length;
+    document.getElementById('stat-open').textContent  = data.filter(r=>['Open','In Progress'].includes(r.status)).length;
+    document.getElementById('stat-done').textContent  = data.filter(r=>r.status==='Completed').length;
+    const total = data.reduce((s,r)=>s+(parseFloat(r.actual_cost||r.estimated_cost)||0),0);
+    document.getElementById('stat-cost').textContent  = '₹'+total.toFixed(0);
+  }
+
+  function renderJobs(data) {
+    const grid = document.getElementById('jobs-grid');
+    if (!data.length) {
+      grid.innerHTML=`<div style="grid-column:1/-1"><div class="table-empty"><div class="icon">🔧</div><p>No maintenance jobs found.</p></div></div>`;
+      return;
+    }
+    const sc  = {'Open':'badge-open','In Progress':'badge-progress','Completed':'badge-completed','On Hold':'badge-hold'};
+    const pc  = {'Low':'badge-low','Medium':'badge-medium','High':'badge-high','Critical':'badge-critical'};
+    const pd  = {'Low':'priority-low','Medium':'priority-medium','High':'priority-high','Critical':'priority-critical'};
+    const icon= {'Open':'🔴','In Progress':'🟡','Completed':'🟢','On Hold':'⚪'};
+    grid.innerHTML = data.map(r => `
+      <div class="job-card">
+        <div class="job-card-header">
+          <div>
+            <div class="job-device">${r.device_name||'—'}</div>
+            <div class="job-serial">${r.serial_number||''} · ${r.category||''}</div>
+          </div>
+          <div class="priority-dot ${pd[r.priority]||''}" title="Priority: ${r.priority}"></div>
+        </div>
+        <div class="job-issue">${r.issue_description}</div>
+        <div class="job-meta">
+          <span class="badge ${sc[r.status]||''}">${icon[r.status]||''} ${r.status}</span>
+          <span class="badge ${pc[r.priority]||''}">${r.priority}</span>
+          ${r.technician?`<span class="job-meta-item">👤 ${r.technician}</span>`:''}
+          <span class="job-meta-item">📅 ${fmtDate(r.created_at)}</span>
+        </div>
+        <div class="job-costs">
+          <div class="job-cost-item"><div class="job-cost-label">Estimated</div><div class="job-cost-value" style="color:#d97706">₹${fmt(r.estimated_cost)}</div></div>
+          <div class="job-cost-item"><div class="job-cost-label">Actual</div><div class="job-cost-value" style="color:${r.actual_cost>0?'#dc2626':'#9ca3af'}">₹${fmt(r.actual_cost)}</div></div>
+          ${r.completed_at?`<div class="job-cost-item"><div class="job-cost-label">Completed</div><div class="job-cost-value" style="font-size:11px;color:#16a34a">${fmtDate(r.completed_at)}</div></div>`:''}
+        </div>
+        ${r.resolution_notes?`<div style="font-size:12px;color:var(--text-2);padding:8px 10px;background:#f0fdf4;border-radius:6px;margin-bottom:10px">✅ ${r.resolution_notes}</div>`:''}
+        <div class="job-actions">
+          <button class="btn btn-warning btn-sm" onclick="openEditModal(${r.id})">✏️ Edit</button>
+          ${r.status==='Open'?`<button class="btn btn-sm" style="background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;font-size:12px" onclick="updateStatus(${r.id},'In Progress')">▶ Start</button>`:''}
+          ${r.status==='In Progress'?`<button class="btn btn-success btn-sm" onclick="openCompleteModal(${r.id})">✅ Complete</button>`:''}
+        </div>
+      </div>`).join('');
+  }
+
+  function openAddModal() {
+    editMode=false;
+    document.getElementById('modal-title').textContent='New Maintenance Job';
+    document.getElementById('submit-btn').textContent='Save Job';
+    document.getElementById('edit-id').value='';
+    document.getElementById('resolution-group').style.display='none';
+    resetForm();
+    document.getElementById('form-modal').classList.add('open');
+  }
+
+  function openEditModal(id) {
+    const r=allRecords.find(x=>x.id===id); if(!r) return;
+    editMode=true;
+    document.getElementById('modal-title').textContent=`Edit Job #${id}`;
+    document.getElementById('submit-btn').textContent='Update Job';
+    document.getElementById('edit-id').value=id;
+    document.getElementById('f-device').value   = r.device_id||'';
+    document.getElementById('f-issue').value    = r.issue_description||'';
+    document.getElementById('f-tech').value     = r.technician||'';
+    document.getElementById('f-priority').value = r.priority||'Medium';
+    document.getElementById('f-est-cost').value = r.estimated_cost||'';
+    document.getElementById('f-act-cost').value = r.actual_cost||'';
+    document.getElementById('f-status').value   = r.status||'Open';
+    document.getElementById('f-resolution').value= r.resolution_notes||'';
+    document.getElementById('resolution-group').style.display = r.status==='Completed'?'':'none';
+    document.getElementById('form-modal').classList.add('open');
+  }
+
+  function openCompleteModal(id) {
+    openEditModal(id);
+    document.getElementById('f-status').value='Completed';
+    document.getElementById('resolution-group').style.display='';
+    document.getElementById('f-resolution').focus();
+  }
+
+  function closeModal(){document.getElementById('form-modal').classList.remove('open');resetForm();}
+  function resetForm(){
+    ['f-issue','f-tech','f-est-cost','f-act-cost','f-resolution'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-device').value='';document.getElementById('f-priority').value='Medium';
+    document.getElementById('f-status').value='Open';document.getElementById('resolution-group').style.display='none';
+    const b=document.getElementById('submit-btn');b.disabled=false;b.textContent='Save Job';
+  }
+
+  async function submitJob() {
+    const device_id=document.getElementById('f-device').value;
+    const issue   =document.getElementById('f-issue').value.trim();
+    if (!device_id||!issue){showToast('Device and issue description required','error');return;}
+    const btn=document.getElementById('submit-btn');btn.disabled=true;btn.textContent='Saving…';
+    const payload={
+      device_id:+device_id, issue_description:issue,
+      technician:document.getElementById('f-tech').value.trim()||null,
+      priority:document.getElementById('f-priority').value,
+      estimated_cost:+document.getElementById('f-est-cost').value||0,
+      actual_cost:+document.getElementById('f-act-cost').value||0,
+      status:document.getElementById('f-status').value,
+      resolution_notes:document.getElementById('f-resolution').value.trim()||null
+    };
+    try{
+      const id=document.getElementById('edit-id').value;
+      const res=await fetch(editMode?`${API}/${id}`:API,{method:editMode?'PUT':'POST',headers:H(),body:JSON.stringify(payload)});
+      const json=await res.json(); if(!json.success) throw new Error(json.message);
+      showToast(`✅ Job ${editMode?'updated':'created'}!`,'success');
+      closeModal(); loadMaintenance();
+    } catch(err){showToast(err.message,'error');btn.disabled=false;btn.textContent=editMode?'Update Job':'Save Job';}
+  }
+
+  async function updateStatus(id, status) {
+    const r=allRecords.find(x=>x.id===id); if(!r) return;
+    try {
+      const res=await fetch(`${API}/${id}`,{method:'PUT',headers:H(),body:JSON.stringify({...r,status})});
+      const json=await res.json(); if(!json.success) throw new Error(json.message);
+      showToast(`✅ Status updated to ${status}`,'success'); loadMaintenance();
+    } catch(err){ showToast(err.message,'error'); }
+  }
+
+  const fmtDate=d=>d?new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—';
+  const fmt=n=>Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2});
+  function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;setTimeout(()=>{t.className='';},3500);}
+</script>
+
+<script>
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    if (newTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.setItem('theme', 'light');
+    }
+  }
+</script>
+</body>
+</html>

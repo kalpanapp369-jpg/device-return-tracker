@@ -1,0 +1,108 @@
+Created At: 2026-06-25T00:52:27Z
+Completed At: 2026-06-25T00:52:27Z
+File Path: `file:///c:/Users/LEN%20CPIN/OneDrive/Desktop/device-return-tracker/frontend/maintenance.html`
+Total Lines: 333
+Total Bytes: 17156
+Showing lines 1 to 100
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: <!DOCTYPE html>
+2: <html lang="en">
+3: <head>
+4:   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+5:   <title>Maintenance Tracker — Device Return Tracker</title>
+6:   
+7:   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+8: 
+9:   <script>
+10:     (function() {
+11:       const savedTheme = localStorage.getItem('theme') || 'dark';
+12:       if (savedTheme === 'dark') {
+13:         document.documentElement.setAttribute('data-theme', 'dark');
+14:       }
+15:     })();
+16:   </script>
+17:   <link rel="stylesheet" href="style.css"/>
+18: </head>
+19: <body>
+20: <!-- SIDEBAR -->
+21: <aside class="sidebar">
+22:   <a class="brand" href="index.html">
+23:     <div class="brand-icon">📦</div>
+24:     Device Returns
+25:   </a>
+26:   
+27:   <div class="user-chip">
+28:     <div class="avatar" id="user-avatar">?</div>
+29:     <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;" id="user-name">…</div>
+30:   </div>
+31: 
+32:   <div class="nav-links">
+33:     <a class="nav-link ${pageName === 'index' ? 'active' : ''}" href="index.html">🏠 Dashboard</a>
+34:     <a class="nav-link ${pageName === 'analytics' ? 'active' : ''}" href="analytics.html">📊 Analytics</a>
+35:     <a class="nav-link ${pageName === 'kyc' ? 'active' : ''}" href="kyc.html">📋 KYC</a>
+36:     <a class="nav-link ${pageName === 'logistics' ? 'active' : ''}" href="logistics.html">🚚 Logistics</a>
+37:     <a class="nav-link ${pageName === 'maintenance' ? 'active' : ''}" href="maintenance.html">🔧 Maintenance</a>
+38:     <a class="nav-link ${pageName === 'qr-scan' ? 'active' : ''}" href="qr-scan.html">📷 QR Scan</a>
+39:     <a class="nav-link admin-only ${pageName === 'admin' ? 'active' : ''}" href="admin.html" style="display:none">⚙️ Admin</a>
+40:     <a class="nav-link admin-only ${pageName === 'audit' ? 'active' : ''}" href="audit.html" style="display:none">📋 Audit</a>
+41:   </div>
+42: 
+43:   <div class="sidebar-footer">
+44:     <button class="theme-toggle-btn" onclick="toggleTheme()">🌓 Toggle Theme</button>
+45:     <button class="btn-logout" onclick="doLogout()">← Logout</button>
+46:   </div>
+47: </aside>
+48: 
+49: <!-- MAIN CONTENT -->
+50: <main class="main-content">
+51: 
+52: <div class="page-inner">
+53:   <div class="page-header">
+54:     <div class="page-title">🔧 Maintenance Tracker</div>
+55:     <button class="btn btn-primary" onclick="openAddModal()">+ New Job</button>
+56:   </div>
+57: 
+58:   <div class="stats-row">
+59:     <div class="stat-card"><div class="stat-label">Total Jobs</div><div class="stat-value blue" id="stat-total">—</div></div>
+60:     <div class="stat-card"><div class="stat-label">Open / In Progress</div><div class="stat-value orange" id="stat-open">—</div></div>
+61:     <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value green" id="stat-done">—</div></div>
+62:     <div class="stat-card"><div class="stat-label">Total Repair Cost</div><div class="stat-value red" id="stat-cost">—</div></div>
+63:   </div>
+64: 
+65:   <div class="card">
+66:     <div class="toolbar">
+67:       <select class="fs" id="filter-status" onchange="loadMaintenance()">
+68:         <option value="">All Statuses</option>
+69:         <option value="Open">Open</option>
+70:         <option value="In Progress">In Progress</option>
+71:         <option value="Completed">Completed</option>
+72:         <option value="On Hold">On Hold</option>
+73:       </select>
+74:       <select class="fs" id="filter-priority" onchange="filterByPriority()">
+75:         <option value="">All Priorities</option>
+76:         <option value="Critical">Critical</option>
+77:         <option value="High">High</option>
+78:         <option value="Medium">Medium</option>
+79:         <option value="Low">Low</option>
+80:       </select>
+81:     </div>
+82:     <div class="jobs-grid" id="jobs-grid">
+83:       <div style="grid-column:1/-1"><div class="table-empty"><div class="icon">⏳</div><p>Loading maintenance jobs…</p></div></div>
+84:     </div>
+85:   </div>
+86: </div>
+87: 
+88: <!-- MODAL -->
+89: <div class="modal-backdrop" id="form-modal" onclick="if(event.target===this)closeModal()">
+90:   <div class="modal">
+91:     <div class="modal-header"><div class="modal-title" id="modal-title">New Maintenance Job</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+92:     <div class="modal-body">
+93:       <input type="hidden" id="edit-id"/>
+94:       <div class="form-grid">
+95:         <div class="form-group full">
+96:           <label for="f-device">Device <span class="req">*</span></label>
+97:           <select id="f-device">
+98:             <option value="">— Select device —</option>
+99:             <option value="1">DEV-001 — Dell Laptop 15"</option>
+100:             <option value="2">DEV-002 — Canon DSLR Camera</option>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

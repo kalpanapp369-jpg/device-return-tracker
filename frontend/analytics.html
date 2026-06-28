@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Analytics — Device Return Tracker</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <div class="brand-icon">📦</div>
+    Device Returns
+  </a>
+  
+  <div class="user-chip">
+    <div class="avatar" id="user-avatar">?</div>
+    <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;" id="user-name">…</div>
+  </div>
+
+    <div class="nav-links">
+    <a class="nav-link" href="index.html">🏠 Dashboard</a>
+    <a class="nav-link" href="bookings.html">📝 Rental Bookings</a>
+    <a class="nav-link" href="return-form.html">📦 Return Form</a>
+    <a class="nav-link active" href="analytics.html">📊 Analytics</a>
+    <a class="nav-link" href="kyc.html">📋 KYC</a>
+    <a class="nav-link" href="logistics.html">🚚 Logistics</a>
+    <a class="nav-link" href="maintenance.html">🔧 Maintenance</a>
+    <a class="nav-link" href="qr-scan.html">📷 QR Scan</a>
+    <a class="nav-link admin-only" href="admin.html" style="display:none">⚙️ Admin</a>
+    <a class="nav-link admin-only" href="audit.html" style="display:none">📋 Audit</a>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="theme-toggle-btn" onclick="toggleTheme()">🌓 Toggle Theme</button>
+    <button class="btn-logout" onclick="doLogout()">🚪 Logout</button>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+
+<div class="page-inner">
+  <div class="page-header">
+    <div>
+      <div class="page-title">📊 Analytics Dashboard</div>
+      <div class="page-subtitle">Real-time insights into device returns and damage trends</div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card accent-blue anim-fade-in-up anim-delay-1"><div class="stat-icon blue">📦</div><div class="stat-label">Total Returns</div><div class="stat-value blue" id="kpi-total">—</div></div>
+    <div class="stat-card accent-red anim-fade-in-up anim-delay-2"><div class="stat-icon red">🔧</div><div class="stat-label">Total Repair Cost</div><div class="stat-value red" id="kpi-repair">—</div></div>
+    <div class="stat-card accent-green anim-fade-in-up anim-delay-3"><div class="stat-icon green">💰</div><div class="stat-label">Total Refunded</div><div class="stat-value green" id="kpi-refund">—</div></div>
+    <div class="stat-card accent-orange anim-fade-in-up anim-delay-4"><div class="stat-icon orange">📉</div><div class="stat-label">Total Deducted</div><div class="stat-value orange" id="kpi-deduct">—</div></div>
+  </div>
+
+  <div class="grid-3">
+    <div class="chart-card"><div class="chart-title">📈 Monthly Returns — Last 6 Months</div><div class="chart-wrap" style="height:240px"><canvas id="monthly-chart"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">⚖️ Settlement Status</div><div class="chart-wrap" style="height:160px"><canvas id="status-chart"></canvas></div><div class="donut-legend" id="status-legend"></div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="chart-card"><div class="chart-title">🔍 Device Condition Breakdown</div><div class="cond-list" id="cond-list"><div class="spinner">Loading…</div></div></div>
+    <div class="chart-card"><div class="chart-title">🏆 Top Devices by Return Count</div><table class="mini-table" id="top-devices-table"><thead><tr><th>Device</th><th>Returns</th><th>Avg Repair</th></tr></thead><tbody id="top-devices-body"><tr><td colspan="3" style="text-align:center;color:var(--text-3);padding:24px">Loading…</td></tr></tbody></table></div>
+  </div>
+
+  <div class="chart-card"><div class="chart-title">🕐 Recent Activity</div><div class="activity-list" id="activity-list"><div class="spinner">Loading…</div></div></div>
+</div>
+
+<div id="toast"></div>
+</main>
+<script>
+  const token = localStorage.getItem('token');
+  const user  = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) window.location.href = 'login.html';
+  const unameEl = document.getElementById('user-name');
+  if (unameEl) unameEl.textContent = user?.name || '';
+  const uavatarEl = document.getElementById('user-avatar');
+  if (uavatarEl) uavatarEl.textContent = (user?.name||'?').charAt(0).toUpperCase();
+  if (user?.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+  }
+  if (user?.role === 'admin') document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+  function doLogout() { localStorage.clear(); window.location.href = 'login.html'; }
+
+  const AUTH = { 'Authorization': `Bearer ${token}` };
+  const API  = 'http://localhost:5000/api/analytics';
+  const fmt  = n => '₹' + parseFloat(n||0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) : '—';
+
+  let monthlyChart, statusChart;
+
+  async function loadAll() {
+    try {
+      const [sumRes, monRes, devRes, actRes] = await Promise.all([
+        fetch(`${API}/summary`,{headers:AUTH}), fetch(`${API}/monthly`,{headers:AUTH}),
+        fetch(`${API}/top-devices`,{headers:AUTH}), fetch(`${API}/recent-activity`,{headers:AUTH})
+      ]);
+      const [sum, mon, dev, act] = await Promise.all([sumRes.json(), monRes.json(), devRes.json(), actRes.json()]);
+      if (sum.success) { renderKPI(sum.data); renderConditions(sum.data); renderStatusDonut(sum.data); }
+      if (mon.success) renderMonthly(mon.data);
+      if (dev.success) renderTopDevices(dev.data);
+      if (act.success) renderActivity(act.data);
+    } catch (err) { console.error('Analytics load error:', err); }
+  }
+
+  function renderKPI(d) {
+    document.getElementById('kpi-total').textContent  = d.total_returns || 0;
+    document.getElementById('kpi-repair').textContent = fmt(d.total_repair_cost);
+    document.getElementById('kpi-refund').textContent = fmt(d.total_refunded);
+    document.getElementById('kpi-deduct').textContent = fmt(d.total_deducted);
+  }
+
+  function renderConditions(d) {
+    const total = +d.total_returns || 1;
+    const items = [
+      { label:'Good',            count:+d.cond_good||0,    color:'#10b981' },
+      { label:'Minor Scratches', count:+d.cond_minor||0,   color:'#f59e0b' },
+      { label:'Major Damage',    count:+d.cond_major||0,   color:'#ef4444' },
+      { label:'Non-Functional',  count:+d.cond_nonfunc||0, color:'#8b5cf6' }
+    ];
+    document.getElementById('cond-list').innerHTML = items.map(i => `
+      <div class="cond-item">
+        <div class="cond-dot" style="background:${i.color}"></div>
+        <div class="cond-label">${i.label}</div>
+        <div class="cond-bar-wrap"><div class="cond-bar" style="background:${i.color}" data-width="${Math.round(i.count/total*100)}%"></div></div>
+        <div class="cond-count">${i.count}</div>
+      </div>`).join('');
+    setTimeout(()=>document.querySelectorAll('.cond-bar').forEach(b=>b.style.width=b.dataset.width), 100);
+  }
+
+  function renderStatusDonut(d) {
+    const ctx = document.getElementById('status-chart').getContext('2d');
+    const data = [+d.pending||0, +d.approved||0, +d.settled||0, +d.rejected||0];
+    const labels = ['Pending','Approved','Settled','Rejected'];
+    const colors = ['#f97316','#3b82f6','#10b981','#ef4444'];
+    if (statusChart) statusChart.destroy();
+    statusChart = new Chart(ctx, { type:'doughnut', data:{labels, datasets:[{data, backgroundColor:colors, borderWidth:3, borderColor:'#fff'}]}, options:{responsive:true, maintainAspectRatio:true, cutout:'68%', plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}`}}}}});
+    document.getElementById('status-legend').innerHTML = labels.map((l,i)=>`<div class="legend-item"><div class="legend-dot" style="background:${colors[i]}"></div><span>${l}: <strong>${data[i]}</strong></span></div>`).join('');
+  }
+
+  function renderMonthly(rows) {
+    const ctx = document.getElementById('monthly-chart').getContext('2d');
+    const labels = rows.map(r => r.month_label);
+    if (monthlyChart) monthlyChart.destroy();
+    monthlyChart = new Chart(ctx, {
+      type: 'bar', data: { labels, datasets: [
+        { label:'Total Returns', data: rows.map(r=>+r.total||0), backgroundColor:'rgba(79,70,229,0.85)', borderRadius:6 },
+        { label:'Repair Cost (₹)', data: rows.map(r=>+r.repair_cost||0), backgroundColor:'rgba(239,68,68,0.75)', borderRadius:6, yAxisID:'y2' }
+      ]}, options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:12}}}}, scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:11}},grid:{color:'rgba(0,0,0,.05)'}},y2:{beginAtZero:true,position:'right',ticks:{font:{size:11},callback:v=>'₹'+v},grid:{display:false}},x:{ticks:{font:{size:11}},grid:{display:false}}}}
+    });
+  }
+
+  function renderTopDevices(rows) {
+    const tbody = document.getElementById('top-devices-body');
+    if (!rows.length) { tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:var(--text-3);padding:24px">No data yet</td></tr>'; return; }
+    tbody.innerHTML = rows.map(r => `<tr><td><div style="font-weight:600">${r.device_name}</div><div style="font-size:11px;color:var(--text-3)">${r.serial_number}</div></td><td><strong>${r.return_count}</strong></td><td>₹${parseFloat(r.avg_repair_cost||0).toFixed(0)}</td></tr>`).join('');
+  }
+
+  function renderActivity(rows) {
+    const list = document.getElementById('activity-list');
+    if (!rows.length) { list.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-3);font-size:13px">No activity yet</div>'; return; }
+    const icons = { 'Good':'✅','Minor Scratches':'⚠️','Major Damage':'❌','Non-Functional':'🚫' };
+    const bgs   = { 'Good':'#dcfce7','Minor Scratches':'#fef9c3','Major Damage':'#fee2e2','Non-Functional':'#f3e8ff' };
+    const statusClass = s => `badge-${(s||'pending').toLowerCase()}`;
+    list.innerHTML = rows.map(r => `
+      <div class="activity-item">
+        <div class="activity-icon" style="background:${bgs[r.device_condition]||'#f1f5f9'}">${icons[r.device_condition]||'📋'}</div>
+        <div class="activity-body"><div class="activity-title">${r.customer_name} — ${r.device_name}</div><div class="activity-sub">Return #${r.id} · ${fmtDate(r.created_at)} · Repair: ₹${parseFloat(r.repair_cost||0).toFixed(2)}</div></div>
+        <span class="badge ${statusClass(r.settlement_status)}">${r.settlement_status}</span>
+      </div>`).join('');
+  }
+
+  loadAll();
+</script>
+
+<script>
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    if (newTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('theme', newTheme);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Customer Portal — Device Tracker</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+  <style>
+    body { background: var(--bg); margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
+    .customer-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 15px 30px; background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .brand-logo { font-size: 20px; font-weight: 800; color: var(--text-1); display: flex; align-items: center; gap: 8px; }
+    .header-actions { display: flex; gap: 15px; align-items: center; }
+    
+    .nav-tabs {
+      display: flex; gap: 20px; padding: 0 30px; background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .nav-tab {
+      padding: 15px 0; font-weight: 600; color: var(--text-3); cursor: pointer;
+      border-bottom: 2px solid transparent; transition: var(--trans);
+    }
+    .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    
+    .customer-main { padding: 30px; flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+    
+    .device-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;
+    }
+    .device-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px; display: flex; flex-direction: column; gap: 10px;
+      transition: var(--trans);
+    }
+    .device-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-glow); border-color: var(--primary); }
+    .device-icon { font-size: 40px; margin-bottom: 10px; }
+    .device-title { font-size: 18px; font-weight: 700; color: var(--text-1); }
+    .device-serial { font-size: 13px; color: var(--text-3); }
+    .device-price { font-size: 16px; font-weight: 600; color: var(--primary); margin-top: auto; }
+    
+    .rent-btn { width: 100%; margin-top: 15px; }
+
+    .rental-list { display: flex; flex-direction: column; gap: 15px; }
+    .rental-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .rental-info { display: flex; flex-direction: column; gap: 5px; }
+    .rental-name { font-size: 16px; font-weight: 700; color: var(--text-1); }
+    .rental-dates { font-size: 13px; color: var(--text-3); }
+    .rental-status { font-weight: 600; font-size: 14px; }
+
+    /* Payment Modal Styles */
+    .pay-modal { max-width: 400px; background: #fff; color: #333; text-align: center; border-radius: 12px; }
+    .pay-modal .modal-header { background: #000; color: #fff; border-radius: 12px 12px 0 0; padding: 20px; }
+    .pay-modal .modal-title { font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .pay-amt { font-size: 32px; font-weight: 800; margin: 20px 0; color: #000; }
+    .pay-methods { display: flex; flex-direction: column; gap: 10px; margin: 0 20px; text-align: left; }
+    .pay-method { border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; background: #f9f9f9; }
+    .pay-method:hover, .pay-method.active { border-color: #000; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .pay-method.active::after { content: '✔'; margin-left: auto; color: #10b981; font-weight: bold; }
+    .pay-method-icon { font-size: 24px; }
+    
+    .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #000; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 0 auto; display: inline-block; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    .pay-btn { background: #000; color: #fff; width: 100%; border: none; padding: 16px; font-size: 16px; font-weight: 700; border-radius: 8px; margin-top: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; transition: 0.2s; }
+    .pay-btn:hover { background: #333; }
+    .pay-btn:disabled { background: #999; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <header class="customer-header">
+    <div class="brand-logo">
+      <div class="brand-icon">📦</div>
+      Device Rentals
+    </div>
+    <div class="header-actions">
+      <span id="user-name" style="font-weight:600;color:var(--text-2);font-size:14px"></span>
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">🌓 Theme</button>
+      <button class="btn btn-danger btn-sm" onclick="doLogout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="nav-tabs">
+    <div class="nav-tab active" id="tab-store" onclick="switchTab('store')">🏪 Storefront</div>
+    <div class="nav-tab" id="tab-rentals" onclick="switchTab('rentals')">📦 My Rentals</div>
+  </div>
+
+  <main class="customer-main">
+    
+    <!-- STOREFRONT -->
+    <div id="view-store">
+      <h2 style="margin-top:0;color:var(--text-1)">Available Devices</h2>
+      <p style="color:var(--text-3);margin-bottom:25px">Browse and rent top-tier electronics.</p>
+      <div class="device-grid" id="devices-grid">
+        <!-- Devices loaded via JS -->
+      </div>
+    </div>
+
+    <!-- MY RENTALS -->
+    <div id="view-rentals" style="display:none">
+      <h2 style="margin-top:0;color:var(--text-1)">My Rentals</h2>
+      <p style="color:var(--text-3);margin-bottom:25px">Track your active bookings and returns.</p>
+      <div class="rental-list" id="rentals-list">
+        <!-- Rentals loaded via JS -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- RENT MODAL -->
+  <div class="modal-backdrop" id="rent-modal" onclick="if(event.target===this)closeRentModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Confirm Rental</div>
+        <button class="modal-close" onclick="closeRentModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <h3 id="m-device-name" style="margin-top:0"></h3>
+        <p style="color:var(--text-3);font-size:13px">Serial: <span id="m-device-serial"></span></p>
+        <div class="form-grid" style="margin-top:20px">
+          <input type="hidden" id="m-device-id"/>
+          <div class="form-group full">
+            <label>Rental Start Date</label>
+            <input type="date" id="m-start" required/>
+          </div>
+          <div class="form-group full">
+            <label>Rental End Date</label>
+            <input type="date" id="m-end" required/>
+          </div>
+          <div class="form-group full">
+            <label>Security Deposit (Refundable)</label>
+            <input type="number" id="m-deposit" value="5000" readonly style="background:var(--surface-hover);cursor:not-allowed"/>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeRentModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-confirm-rent" onclick="openPaymentModal()">Proceed to Payment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYMENT GATEWAY MODAL -->
+  <div class="modal-backdrop" id="payment-modal" style="z-index:9999;">
+    <div class="modal pay-modal">
+      <div class="modal-header">
+        <div class="modal-title"><span style="font-size:24px">🔒</span> Secure Payment Checkout</div>
+      </div>
+      <div class="modal-body" style="padding: 10px 0 30px 0;">
+        <div style="font-size:14px; color:#666; margin-top:10px;">Amount to Pay (Security Deposit)</div>
+        <div class="pay-amt">₹<span id="p-amount">5000</span></div>
+        
+        <div id="pay-selection-screen">
+          <div style="font-size:13px; font-weight:700; color:#888; margin: 0 20px 10px; text-align:left; text-transform:uppercase;">Select Payment Method</div>
+          <div class="pay-methods">
+            <div class="pay-method active" onclick="selectPay(this)">
+              <div class="pay-method-icon">💳</div>
+              <div>
+                <div style="font-weight:700; font-size:15px; color:#111">Credit / Debit Card</div>
+                <div style="font-size:12px; color:#777">Visa, MasterCard, RuPay</div>
+              </div>
+            </div>
+            <div class="pay-method" onclick="selectPay(this)">
+              <div class="pay-method-icon">📱</div>
+              <div>
+                <div style="font-weight:700; font-size:15px; color:#111">UPI</div>
+                <div style="font-size:12px; color:#777">GPay, PhonePe, Paytm</div>
+              </div>
+            </div>
+          </div>
+          <div style="padding: 0 20px;">
+            <button class="pay-btn" id="btn-pay-now" onclick="processPayment()">
+              Pay Securely
+            </button>
+          </div>
+        </div>
+
+        <div id="pay-processing-screen" style="display:none; padding:40px 20px;">
+          <div class="spinner"></div>
+          <div style="margin-top:15px; font-weight:700; font-size:16px; color:#000;">Processing Payment...</div>
+          <div style="font-size:13px; color:#666; margin-top:5px;">Please do not refresh or close this window.</div>
+        </div>
+
+        <div id="pay-success-screen" style="display:none; padding:30px 20px;">
+          <div style="font-size:60px; margin-bottom:10px;">✅</div>
+          <div style="font-weight:800; font-size:22px; color:#10b981;">Payment Successful!</div>
+          <div style="font-size:14px; color:#666; margin-top:5px;">Your deposit has been secured.</div>
+          <div style="font-size:12px; color:#999; margin-top:10px;">Redirecting...</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    const API = 'http://localhost:5000/api';
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+
+    if (!token || user.role !== 'customer') {
+      window.location.href = 'login.html';
+    }
+    document.getElementById('user-name').textContent = `Welcome, ${user.name}`;
+
+    function toggleTheme() {
+      const root = document.documentElement;
+      const isDark = root.getAttribute('data-theme') === 'dark';
+      root.removeAttribute('data-theme');
+      if (!isDark) root.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', !isDark ? 'dark' : 'light');
+    }
+
+    function doLogout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = 'login.html';
+    }
+
+    function showToast(msg, type='info') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `show ${type}`;
+      setTimeout(()=>t.className='', 3500);
+    }
+
+    function switchTab(tab) {
+      document.getElementById('tab-store').classList.toggle('active', tab==='store');
+      document.getElementById('tab-rentals').classList.toggle('active', tab==='rentals');
+      document.getElementById('view-store').style.display = tab==='store' ? 'block' : 'none';
+      document.getElementById('view-rentals').style.display = tab==='rentals' ? 'block' : 'none';
+      if(tab === 'store') loadDevices();
+      if(tab === 'rentals') loadRentals();
+    }
+
+    async function loadDevices() {
+      try {
+        const res = await fetch(`${API}/customer/devices`, { headers: { 'Authorization': `Bearer ${token}` }});
+        const json = await res.json();
+        if(!json.success) throw new Error(json.message);
+        
+        const grid = document.getElementById('devices-grid');
+        if(!json.data.length) {
+          grid.innerHTML = '<div style="color:var(--text-3)">No devices currently available. Check back later!</div>';
+          return;
+        }
+
+        grid.innerHTML = json.data.map(d => `
+          <div class="device-card">
+            <div class="device-icon">${d.category === 'Laptop' ? '💻' : d.category === 'Camera' ? '📷' : '📱'}</div>
+            <div class="device-title">${d.device_name}</div>
+            <div class="device-serial">${d.serial_number}</div>
+            <div class="device-price">₹${Math.floor(d.purchase_cost * 0.05)} / month</div>
+            <button class="btn btn-primary rent-btn" onclick="openRentModal(${d.id}, '${d.device_name}', '${d.serial_number}')">Rent Now</button>
+          </div>
+        `).join('');
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    async function loadRentals() {
+      try {
+        const res = await fetch(`${API}/customer/my-rentals`, { headers: { 'Authorization': `Bearer ${token}` }});
+        const json = await res.json();
+        if(!json.success) throw new Error(json.message);
+        
+        const list = document.getElementById('rentals-list');
+        if(!json.data.length) {
+          list.innerHTML = '<div style="color:var(--text-3)">You have no rental history.</div>';
+          return;
+        }
+
+        list.innerHTML = json.data.map(r => {
+          let statusHtml = '';
+          if(r.booking_status === 'Active') {
+            statusHtml = `<span style="color:var(--warning)">🟢 Active Rental</span>
+                          <div style="font-size:12px;color:var(--text-3);margin-top:5px">To return, please visit our store or contact support.</div>`;
+          } else {
+            statusHtml = `<span style="color:var(--primary)">📦 Returned</span>
+                          <a href="track.html" target="_blank" class="btn btn-ghost btn-sm" style="margin-left:10px">Track Refund</a>`;
+          }
+
+          return `
+            <div class="rental-card">
+              <div class="rental-info">
+                <div class="rental-name">${r.device_name}</div>
+                <div class="rental-dates">Booking #${r.booking_id} | ${r.rental_start.slice(0,10)} to ${r.rental_end.slice(0,10)}</div>
+              </div>
+              <div class="rental-status">
+                ${statusHtml}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    function openRentModal(id, name, serial) {
+      document.getElementById('m-device-id').value = id;
+      document.getElementById('m-device-name').textContent = name;
+      document.getElementById('m-device-serial').textContent = serial;
+      document.getElementById('m-start').valueAsDate = new Date();
+      
+      const end = new Date(); end.setMonth(end.getMonth() + 1);
+      document.getElementById('m-end').valueAsDate = end;
+
+      document.getElementById('rent-modal').classList.add('open');
+    }
+
+    function closeRentModal() {
+      document.getElementById('rent-modal').classList.remove('open');
+    }
+
+    function openPaymentModal() {
+      const amt = document.getElementById('m-deposit').value;
+      document.getElementById('p-amount').textContent = amt;
+      document.getElementById('payment-modal').classList.add('open');
+      
+      // Reset screens
+      document.getElementById('pay-selection-screen').style.display = 'block';
+      document.getElementById('pay-processing-screen').style.display = 'none';
+      document.getElementById('pay-success-screen').style.display = 'none';
+      document.getElementById('btn-pay-now').disabled = false;
+      document.getElementById('btn-pay-now').textContent = 'Pay Securely';
+    }
+
+    function selectPay(el) {
+      document.querySelectorAll('.pay-method').forEach(n => n.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    async function processPayment() {
+      document.getElementById('pay-selection-screen').style.display = 'none';
+      document.getElementById('pay-processing-screen').style.display = 'block';
+
+      // Simulate payment network delay
+      await new Promise(r => setTimeout(r, 2000));
+
+      document.getElementById('pay-processing-screen').style.display = 'none';
+      document.getElementById('pay-success-screen').style.display = 'block';
+
+      // Wait a moment so user sees the success checkmark
+      await new Promise(r => setTimeout(r, 1500));
+
+      // Close modal and call the real backend
+      document.getElementById('payment-modal').classList.remove('open');
+      await confirmRent();
+    }
+
+    async function confirmRent() {
+      const payload = {
+        deviceId: document.getElementById('m-device-id').value,
+        rentalStart: document.getElementById('m-start').value,
+        rentalEnd: document.getElementById('m-end').value,
+        depositAmount: document.getElementById('m-deposit').value
+      };
+
+      try {
+        const res = await fetch(`${API}/customer/rent`, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if(!json.success) throw new Error(json.message);
+
+        showToast('Device rented successfully!', 'success');
+        closeRentModal();
+        switchTab('rentals');
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    // Init
+    loadDevices();
+  </script>
+</body>
+</html>

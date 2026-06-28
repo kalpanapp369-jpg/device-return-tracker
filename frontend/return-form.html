@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Return Form — Device Return Tracker</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <div class="brand-icon">📦</div>
+    Device Returns
+  </a>
+  
+  <div class="user-chip">
+    <div class="avatar" id="user-avatar">?</div>
+    <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;" id="user-name">…</div>
+  </div>
+
+    <div class="nav-links">
+    <a class="nav-link" href="index.html">🏠 Dashboard</a>
+    <a class="nav-link" href="bookings.html">📝 Rental Bookings</a>
+    <a class="nav-link active" href="return-form.html">📦 Return Form</a>
+    <a class="nav-link" href="analytics.html">📊 Analytics</a>
+    <a class="nav-link" href="kyc.html">📋 KYC</a>
+    <a class="nav-link" href="logistics.html">🚚 Logistics</a>
+    <a class="nav-link" href="maintenance.html">🔧 Maintenance</a>
+    <a class="nav-link" href="qr-scan.html">📷 QR Scan</a>
+    <a class="nav-link admin-only" href="admin.html" style="display:none">⚙️ Admin</a>
+    <a class="nav-link admin-only" href="audit.html" style="display:none">📋 Audit</a>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="theme-toggle-btn" onclick="toggleTheme()">🌓 Toggle Theme</button>
+    <button class="btn-logout" onclick="doLogout()">🚪 Logout</button>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+
+<div class="page-inner">
+  <div class="page-title">📝 Device Return Form</div>
+  <div class="page-sub">Lookup by Serial Number to auto-fill booking, upload multiple damage photos, and run AI summary.</div>
+
+  <!-- Steps -->
+  <div class="steps-wrapper" style="display:flex;align-items:flex-start;justify-content:center;margin-bottom:32px;gap:12px;text-align:center;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div class="step active" id="step1">1</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text-1)" id="step1-label">Scan/Lookup</div>
+    </div>
+    <div class="step-line" id="line1" style="margin-top:20px;width:60px;transition:var(--trans)"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div class="step" id="step2">2</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text-3)" id="step2-label">Verify Info</div>
+    </div>
+    <div class="step-line" id="line2" style="margin-top:20px;width:60px;transition:var(--trans)"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div class="step" id="step3">3</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text-3)" id="step3-label">Fill & Submit</div>
+    </div>
+  </div>
+
+  <!-- Scanner Card -->
+  <div class="card" id="lookup-card">
+    <div class="card-header">Step 1 — Scan or Lookup Device</div>
+    <div class="card-body">
+      <div style="font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:8px">Enter device serial number (e.g. DEV-001)</div>
+      <div class="manual-section" style="display:flex;gap:10px">
+        <input type="text" id="manual-serial" placeholder="DEV-..." onkeydown="if(event.key==='Enter')lookupDevice()" style="flex:1;padding:12px;border:1px solid var(--border);border-radius:7px;background:var(--bg)"/>
+        <button class="btn btn-primary" onclick="lookupDevice()">🔍 Lookup Auto-fill</button>
+      </div>
+      <div id="lookup-status" style="margin-top:12px;font-size:13px;font-weight:600"></div>
+    </div>
+  </div>
+
+  <!-- Device Info Card -->
+  <div class="card" id="device-card" style="display:none">
+    <div class="card-header">Step 2 — Verify Booking Info</div>
+    <div class="card-body">
+      <div class="device-info show" id="device-info">
+        <div class="info-grid" id="device-info-grid"></div>
+        <button class="btn btn-primary btn-full" onclick="goToReturnForm()" style="margin-top:16px">→ Proceed to Return Details</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Return Form Card -->
+  <div class="card" id="form-card" style="display:none">
+    <div class="card-header">Step 3 — Fill Return Details, Upload Photos & Submit</div>
+    <div class="card-body">
+      <div class="return-form show">
+        <input type="hidden" id="f-booking-id"/>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Booking ID</label>
+            <input type="text" id="f-booking-display" readonly style="background:var(--surface-hover);cursor:not-allowed"/>
+          </div>
+          <div class="form-group">
+            <label for="f-date">Return Date <span class="req">*</span></label>
+            <input type="date" id="f-date"/>
+          </div>
+          <div class="form-group full">
+            <label for="f-condition">Device Condition <span class="req">*</span></label>
+            <select id="f-condition" onchange="updateCalc()">
+              <option value="">— Select condition —</option>
+              <option value="Good">✅ Good — No damage</option>
+              <option value="Minor Scratches">⚠️ Minor Scratches — Cosmetic only</option>
+              <option value="Major Damage">❌ Major Damage — Structural</option>
+              <option value="Non-Functional">🚫 Non-Functional — Does not power on</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label for="f-damage">Damage Description</label>
+            <textarea id="f-damage" placeholder="Describe any visible damage…"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="f-cost">Repair Cost (₹)</label>
+            <input type="number" id="f-cost" placeholder="0.00" min="0" step="0.01" oninput="updateCalc()"/>
+          </div>
+          <div class="form-group">
+            <label for="f-notes">Internal Notes</label>
+            <input type="text" id="f-notes" placeholder="Optional notes…"/>
+          </div>
+          
+          <!-- Multiple Photos -->
+          <div class="form-group full" style="margin-top:8px">
+            <label for="f-photos">📸 Upload Damage Photos (Multiple)</label>
+            <input type="file" id="f-photos" multiple accept="image/*" style="padding:12px;border:1px dashed var(--border);border-radius:7px;width:100%;background:var(--bg)"/>
+            <small style="color:var(--text-3);display:block;margin-top:4px">Select multiple files at once. They will be uploaded sequentially.</small>
+          </div>
+
+          <!-- AI Summary -->
+          <div class="form-group full">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;padding:12px;background:var(--surface-hover);border-radius:7px">
+              <input type="checkbox" id="f-run-ai" checked style="width:16px;height:16px"/>
+              🤖 Auto-generate AI Damage Summary & Repair Estimate
+            </label>
+          </div>
+
+          <div class="form-group full">
+            <div class="calc-box" id="calc-box">
+              <div class="calc-row"><span>Deposit held</span><span id="c-dep">—</span></div>
+              <div class="calc-row"><span>Repair cost</span><span id="c-rep">₹0</span></div>
+              <div class="calc-row"><span>Deduction (est.)</span><span id="c-ded">₹0</span></div>
+              <div class="calc-row total"><span>Refund to customer</span><span id="c-ref">—</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button class="btn btn-ghost" onclick="window.location.reload()">↩ Start Over</button>
+          <button class="btn btn-primary" id="submit-btn" onclick="submitReturn()" style="flex:1;justify-content:center">✅ Submit Return Record</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Card -->
+  <div class="card" id="success-card" style="display:none">
+    <div class="card-body" style="text-align:center;padding:40px">
+      <div style="font-size:56px;margin-bottom:16px">🎉</div>
+      <div style="font-size:22px;font-weight:700;margin-bottom:8px">Return Recorded Successfully!</div>
+      <div style="font-size:14px;color:var(--text-2);margin-bottom:24px" id="success-msg">Photos uploaded and AI summary generated.</div>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <a href="index.html" class="btn btn-ghost">📋 View Dashboard</a>
+        <button class="btn btn-primary" onclick="window.location.reload()">📷 Next Return</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+</main>
+
+<script>
+  const API   = 'http://localhost:5000/api/returns';
+  const token = localStorage.getItem('token');
+  const user  = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) window.location.href = 'login.html';
+  const unameEl = document.getElementById('user-name');
+  if (unameEl) unameEl.textContent = user?.name || '';
+  const uavatarEl = document.getElementById('user-avatar');
+  if (uavatarEl) uavatarEl.textContent = (user?.name||'?').charAt(0).toUpperCase();
+  if (user?.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+  }
+  function doLogout() { localStorage.clear(); window.location.href = 'login.html'; }
+
+  let currentBooking = null;
+  let scannedSerial = '';
+
+  function showToast(msg, type='info') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `show ${type}`;
+    setTimeout(()=>t.className='', 3500);
+  }
+
+  function setStatus(text, color) {
+    const s = document.getElementById('lookup-status');
+    s.textContent = text;
+    s.style.color = color;
+  }
+
+  function markStep(n) {
+    for(let i=1;i<=3;i++){
+      document.getElementById('step'+i).className = 'step-circle' + (i<=n?' active':'');
+      document.getElementById('step'+i+'-label').className = 'step-label' + (i<=n?' active':'');
+      if(i<3) document.getElementById('line'+i).className = 'step-line' + (i<n?' active':'');
+    }
+  }
+
+  async function lookupDevice() {
+    scannedSerial = document.getElementById('manual-serial').value.trim();
+    if (!scannedSerial) { showToast('Enter a serial number', 'error'); return; }
+    setStatus('🔍 Looking up device...', 'var(--text-1)');
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/returns/booking-lookup?serial=${encodeURIComponent(scannedSerial)}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const json = await res.json();
+      if(res.ok && json.success && json.data) {
+        currentBooking = json.data;
+        showDeviceInfo(currentBooking);
+        setStatus(`✅ Device found: ${currentBooking.device_name}`, 'var(--success)');
+        markStep(2);
+      } else {
+        // Fallback or not found
+        setStatus('❌ No active booking found. Enter booking ID manually.', 'var(--danger)');
+        showManualBooking();
+      }
+    } catch(err) {
+      setStatus(`❌ Error: ${err.message}`, 'var(--danger)');
+      showManualBooking();
+    }
+  }
+
+  function showDeviceInfo(data) {
+    const grid = document.getElementById('device-info-grid');
+    grid.innerHTML = `
+      <div class="info-item"><div class="il">Device</div><div class="iv">${data.device_name || '—'}</div></div>
+      <div class="info-item"><div class="il">Serial</div><div class="iv">${data.serial_number || scannedSerial}</div></div>
+      <div class="info-item"><div class="il">Customer</div><div class="iv">${data.customer_name || '—'}</div></div>
+      <div class="info-item"><div class="il">Phone</div><div class="iv">${data.customer_phone|| '—'}</div></div>
+      <div class="info-item"><div class="il">Deposit Held</div><div class="iv">₹${parseFloat(data.deposit_amount||0).toFixed(2)}</div></div>
+      <div class="info-item"><div class="il">Booking ID</div><div class="iv">#${data.booking_id}</div></div>
+    `;
+    document.getElementById('device-card').style.display = '';
+  }
+
+  function showManualBooking() {
+    currentBooking = null;
+    document.getElementById('device-info-grid').innerHTML = `
+      <div class="info-item" style="grid-column:1/-1">
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px">Enter Booking ID <span style="color:#dc2626">*</span></label>
+        <div style="display:flex;gap:10px">
+          <input type="number" id="manual-booking-id" placeholder="e.g. 1" min="1" style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg)"/>
+          <button class="btn btn-primary" onclick="proceedWithManualBooking()">Continue →</button>
+        </div>
+      </div>`;
+    document.getElementById('device-card').style.display = '';
+    markStep(2);
+  }
+
+  function proceedWithManualBooking() {
+    const bid = document.getElementById('manual-booking-id')?.value;
+    if (!bid || +bid < 1) { showToast('Enter a valid Booking ID', 'error'); return; }
+    currentBooking = { booking_id: +bid, serial_number: scannedSerial, deposit_amount: 0 };
+    goToReturnForm();
+  }
+
+  function goToReturnForm() {
+    if (!currentBooking) return;
+    document.getElementById('f-booking-id').value = currentBooking.booking_id;
+    document.getElementById('f-booking-display').value = `#${currentBooking.booking_id} — ${currentBooking.device_name||scannedSerial}`;
+    document.getElementById('f-date').valueAsDate = new Date();
+    if (currentBooking.deposit_amount) {
+      document.getElementById('c-dep').textContent = `₹${parseFloat(currentBooking.deposit_amount).toFixed(2)}`;
+    }
+    document.getElementById('form-card').style.display = '';
+    document.getElementById('form-card').scrollIntoView({ behavior:'smooth', block:'start' });
+    markStep(3);
+  }
+
+  function updateCalc() {
+    const cnd = document.getElementById('f-condition').value;
+    const rep = parseFloat(document.getElementById('f-cost').value) || 0;
+    const dep = parseFloat(currentBooking?.deposit_amount || 0);
+    if (!cnd) { document.getElementById('calc-box').classList.remove('visible'); return; }
+    const eff = cnd === 'Good' ? 0 : rep;
+    const ded = Math.min(eff, dep);
+    const ref = dep - ded;
+    document.getElementById('calc-box').classList.add('visible');
+    document.getElementById('c-rep').textContent = '₹' + eff.toFixed(2);
+    document.getElementById('c-ded').textContent = '₹' + ded.toFixed(2);
+    document.getElementById('c-ref').textContent = cnd === 'Good' ? `₹${dep.toFixed(2)} (full)` : `₹${ref.toFixed(2)}`;
+  }
+
+  async function submitReturn() {
+    const booking_id      = document.getElementById('f-booking-id').value;
+    const return_date     = document.getElementById('f-date').value;
+    const device_condition= document.getElementById('f-condition').value;
+    if (!booking_id || !return_date || !device_condition) {
+      showToast('Please fill all required fields', 'error'); return;
+    }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true; btn.textContent = 'Submitting Record…';
+
+    try {
+      // 1. Create Record
+      const payload = {
+        booking_id:        +booking_id,
+        return_date,
+        device_condition,
+        damage_description:document.getElementById('f-damage').value.trim() || null,
+        repair_cost:       parseFloat(document.getElementById('f-cost').value)  || 0,
+        notes:             document.getElementById('f-notes').value.trim() || null
+      };
+
+      const res  = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+      const recordId = json.data.id;
+
+      // 2. Upload Multiple Photos
+      const fileInput = document.getElementById('f-photos');
+      if (fileInput.files.length > 0) {
+        btn.textContent = `Uploading ${fileInput.files.length} photos…`;
+        for (let i = 0; i < fileInput.files.length; i++) {
+          const formData = new FormData();
+          formData.append('photo', fileInput.files[i]);
+          formData.append('description', 'Auto-uploaded from Return Form');
+          await fetch(`http://localhost:5000/api/upload/damage/${recordId}`, {
+            method: 'POST',
+            headers: { 'Authorization':`Bearer ${token}` },
+            body: formData
+          });
+        }
+      }
+
+      // 3. Run AI Summary
+      const runAi = document.getElementById('f-run-ai').checked;
+      if (runAi) {
+        btn.textContent = '🤖 Generating AI Summary…';
+        await fetch(`http://localhost:5000/api/ai/auto-fill/${recordId}`, { method:'POST', headers: { 'Authorization':`Bearer ${token}` } });
+      }
+
+      // 4. Success
+      document.getElementById('lookup-card').style.display = 'none';
+      document.getElementById('device-card').style.display = 'none';
+      document.getElementById('form-card').style.display    = 'none';
+      document.getElementById('success-card').style.display = '';
+      document.getElementById('success-msg').textContent    =
+        `Return Record #${recordId} saved for ${currentBooking?.customer_name || 'Customer'} — ${currentBooking?.device_name || scannedSerial}`;
+      document.getElementById('success-card').scrollIntoView({ behavior:'smooth' });
+
+    } catch (err) {
+      showToast(err.message || 'Submit failed', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = '✅ Submit Return Record';
+    }
+  }
+
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    if (newTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('theme', newTheme);
+  }
+</script>
+</body>
+</html>

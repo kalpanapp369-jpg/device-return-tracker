@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Dashboard — Device Return Tracker</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+</head>
+<body>
+
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <div class="brand-icon">📦</div>
+    Device Returns
+  </a>
+  <div class="user-chip">
+    <div class="avatar" id="user-avatar">?</div>
+    <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;" id="user-name">…</div>
+  </div>
+
+    <div class="nav-links">
+    <a class="nav-link active" href="index.html">🏠 Dashboard</a>
+    <a class="nav-link" href="bookings.html">📝 Rental Bookings</a>
+    <a class="nav-link" href="return-form.html">📦 Return Form</a>
+    <a class="nav-link" href="analytics.html">📊 Analytics</a>
+    <a class="nav-link" href="kyc.html">📋 KYC</a>
+    <a class="nav-link" href="logistics.html">🚚 Logistics</a>
+    <a class="nav-link" href="maintenance.html">🔧 Maintenance</a>
+    <a class="nav-link" href="qr-scan.html">📷 QR Scan</a>
+    <a class="nav-link admin-only" href="admin.html" style="display:none">⚙️ Admin</a>
+    <a class="nav-link admin-only" href="audit.html" style="display:none">📋 Audit</a>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="theme-toggle-btn" onclick="toggleTheme()">🌓 Toggle Theme</button>
+    <button class="btn-logout" onclick="doLogout()">🚪 Logout</button>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+  <div class="page-header">
+    <h1 class="page-title">Dashboard Overview</h1>
+  </div>
+
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card accent-blue anim-fade-in-up anim-delay-1">
+      <div class="stat-icon blue">📦</div>
+      <div class="stat-label">Total Returns</div>
+      <div class="stat-value blue" id="stat-total">—</div>
+      <div class="stat-trend">All time records</div>
+    </div>
+    <div class="stat-card accent-orange anim-fade-in-up anim-delay-2">
+      <div class="stat-icon orange">⏳</div>
+      <div class="stat-label">Pending Settlement</div>
+      <div class="stat-value orange" id="stat-pending">—</div>
+      <div class="stat-trend">Awaiting review</div>
+    </div>
+    <div class="stat-card accent-green anim-fade-in-up anim-delay-3">
+      <div class="stat-icon green">✅</div>
+      <div class="stat-label">Good Condition</div>
+      <div class="stat-value green" id="stat-good">—</div>
+      <div class="stat-trend">No damage</div>
+    </div>
+    <div class="stat-card accent-red anim-fade-in-up anim-delay-4">
+      <div class="stat-icon red">⚠️</div>
+      <div class="stat-label">Damaged Devices</div>
+      <div class="stat-value red" id="stat-damaged">—</div>
+      <div class="stat-trend">Needs attention</div>
+    </div>
+  </div>
+
+  <!-- Main Card -->
+  <div class="card anim-fade-in-up">
+    <div class="card-header">
+      <div class="card-title">📋 Return Records</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ai btn-sm" onclick="openAIChatModal()">🤖 AI Assistant</button>
+        <button class="btn btn-excel btn-sm" onclick="exportExcel()">📊 Excel</button>
+        <button class="btn btn-pdf btn-sm" onclick="exportPDF()">📄 PDF</button>
+        <button class="btn btn-primary" onclick="openAddModal()">+ New Return</button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Search customer, device, booking…" oninput="debounceLoad()"/>
+        </div>
+        <select class="fs" id="filter-status" onchange="loadRecords(1)">
+          <option value="">All Statuses</option>
+          <option value="Pending">⏳ Pending</option>
+          <option value="Approved">✅ Approved</option>
+          <option value="Settled">💰 Settled</option>
+          <option value="Rejected">❌ Rejected</option>
+        </select>
+        <select class="fs" id="filter-condition" onchange="loadRecords(1)">
+          <option value="">All Conditions</option>
+          <option value="Good">✅ Good</option>
+          <option value="Minor Scratches">⚠️ Minor Scratches</option>
+          <option value="Major Damage">❌ Major Damage</option>
+          <option value="Non-Functional">🚫 Non-Functional</option>
+        </select>
+        <span style="font-size:12px;color:var(--text-3)">From</span>
+        <input type="date" class="fd" id="filter-from" onchange="loadRecords(1)"/>
+        <span style="font-size:12px;color:var(--text-3)">To</span>
+        <input type="date" class="fd" id="filter-to" onchange="loadRecords(1)"/>
+        <select class="fs" id="sort-select" onchange="loadRecords(1)">
+          <option value="created_at">🕐 Newest First</option>
+          <option value="return_date">📅 Return Date</option>
+          <option value="repair_cost">💸 Repair Cost</option>
+          <option value="settlement_status">📊 Status</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="clear-btn" onclick="clearFilters()" style="display:none">✕ Clear</button>
+      </div>
+    </div>
+
+    <!-- Result bar -->
+    <div class="result-bar" id="result-bar" style="display:none">
+      <span id="result-count"></span>
+      <span class="clear-link" onclick="clearFilters()">✕ Clear filters</span>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Customer</th><th>Device</th><th>Return Date</th>
+            <th>Condition</th><th>Repair Cost</th><th>Refund</th><th>Status</th><th>AI</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td colspan="10">
+            <div class="table-empty">
+              <span class="empty-icon">⏳</span>
+              <p>Loading records…</p>
+            </div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination" style="display:none">
+      <div class="pagination-info" id="pg-info"></div>
+      <div class="pagination-btns" id="pg-btns"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ═══ ADD/EDIT MODAL ══════════════════════════════════════ -->
+<div class="modal-backdrop" id="form-modal" onclick="handleBD(event,'form-modal')">
+  <div class="modal wide">
+    <div class="modal-header">
+      <div class="modal-title" id="form-title">📦 New Return Record</div>
+      <button class="modal-close" onclick="closeFormModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id"/>
+      <div class="form-grid">
+        <div class="form-group" id="grp-booking">
+          <label for="f-bid">Booking ID <span class="req">*</span></label>
+          <input type="number" id="f-bid" placeholder="e.g. 1" min="1" oninput="clearFE('f-bid')"/>
+          <span class="hint">From the rental_bookings table</span>
+        </div>
+        <div class="form-group">
+          <label for="f-date">Return Date <span class="req">*</span></label>
+          <input type="date" id="f-date" oninput="clearFE('f-date')"/>
+        </div>
+        <div class="form-group full">
+          <label for="f-cond">Device Condition <span class="req">*</span></label>
+          <select id="f-cond" onchange="updateCalc();clearFE('f-cond')">
+            <option value="">— Select condition —</option>
+            <option value="Good">✅ Good — No damage</option>
+            <option value="Minor Scratches">⚠️ Minor Scratches — Cosmetic only</option>
+            <option value="Major Damage">❌ Major Damage — Structural</option>
+            <option value="Non-Functional">🚫 Non-Functional — Does not power on</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label for="f-desc">Damage Description</label>
+          <textarea id="f-desc" placeholder="Describe any visible damage…"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="f-cost">Repair Cost (₹)</label>
+          <input type="number" id="f-cost" placeholder="0.00" min="0" step="0.01" oninput="updateCalc()"/>
+        </div>
+        <div class="form-group">
+          <label for="f-status">Settlement Status</label>
+          <select id="f-status">
+            <option value="Pending">⏳ Pending</option>
+            <option value="Approved">✅ Approved</option>
+            <option value="Settled">💰 Settled</option>
+            <option value="Rejected">❌ Rejected</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label for="f-notes">Notes</label>
+          <input type="text" id="f-notes" placeholder="Optional internal notes…"/>
+        </div>
+        <div class="form-group full">
+          <div class="calc-box" id="calc-box">
+            <div class="calc-row"><span>Repair cost</span><span id="c-rep">₹0</span></div>
+            <div class="calc-row total"><span>Estimated Refund</span><span id="c-ref">—</span></div>
+          </div>
+        </div>
+        <!-- AI helpers -->
+        <div class="form-group full">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-ai btn-sm" onclick="aiGenerateSummary()">🤖 AI Damage Summary</button>
+            <button type="button" class="btn btn-ai btn-sm" onclick="aiEstimateRepair()">🤖 AI Repair Estimate</button>
+          </div>
+          <div class="ai-panel" id="form-ai-panel" style="margin-top:10px;display:none">
+            <div class="ai-panel-title">🤖 AI Analysis Result</div>
+            <div id="form-ai-content"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeFormModal()">Cancel</button>
+      <button class="btn btn-primary" id="form-submit-btn" onclick="submitForm()">💾 Save Return Record</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SETTLEMENT MODAL ════════════════════════════════════ -->
+<div class="modal-backdrop" id="settle-modal" onclick="handleBD(event,'settle-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="settle-title">⚖️ Settlement Decision</div>
+      <button class="modal-close" onclick="closeSettleModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settle-info" id="settle-info"></div>
+      <div class="form-group">
+        <label>Notes / Reason</label>
+        <textarea id="settle-notes" placeholder="Add settlement notes…" style="min-height:90px"></textarea>
+      </div>
+      <div class="ai-panel" id="settle-ai-panel" style="margin-top:12px;display:none">
+        <div class="ai-panel-title">🤖 AI Email Draft Preview</div>
+        <div class="ai-result" id="settle-ai-draft">Generating AI email draft…</div>
+        <div style="font-size:11px;color:#7c3aed;margin-top:4px">✨ This AI-drafted email will be sent to the customer automatically.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeSettleModal()">Cancel</button>
+      <button class="btn btn-reject"  id="s-reject-btn"  onclick="doSettle('reject')">❌ Reject</button>
+      <button class="btn btn-settle"  id="s-settle-btn"  onclick="doSettle('settle')">✔ Mark Settled</button>
+      <button class="btn btn-approve" id="s-approve-btn" onclick="doSettle('approve')">✅ Approve + Email</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PHOTO MODAL ══════════════════════════════════════════ -->
+<div class="modal-backdrop" id="photo-modal" onclick="handleBD(event,'photo-modal')">
+  <div class="modal wide">
+    <div class="modal-header">
+      <div class="modal-title" id="photo-modal-title">📸 Damage Photos</div>
+      <button class="modal-close" onclick="closePhotoModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="photo-dropzone" id="dropzone"
+           onclick="document.getElementById('photo-file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event)">
+        <span class="dz-icon">☁️</span>
+        <p style="font-weight:600;color:var(--text-1);margin-bottom:4px">Click to upload or drag & drop</p>
+        <small style="color:var(--text-3)">JPG, PNG, WEBP — max 5MB · Saved to Cloudinary</small>
+      </div>
+      <input type="file" id="photo-file-input" accept="image/*" multiple onchange="handleFileSelect(event)" style="display:none"/>
+      <div id="upload-status" style="margin-top:10px;font-size:12px;color:var(--text-2)"></div>
+      <div style="margin-top:16px">
+        <div style="font-size:13px;font-weight:600;color:var(--text-1);margin-bottom:10px">☁️ Cloudinary Photos</div>
+        <div class="photo-grid" id="photo-grid"><div class="no-photos">No photos uploaded yet.</div></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closePhotoModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ AI CHAT MODAL ════════════════════════════════════════ -->
+<div class="modal-backdrop" id="chat-modal" onclick="handleBD(event,'chat-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🤖 AI Assistant</div>
+      <button class="modal-close" onclick="closeChatModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:12px">Powered by Gemini AI · Ask anything about returns, damage, or settlements</div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-msg ai">👋 Hi! I'm your Device Return AI Assistant. Ask me about damage assessment, repair costs, deposit settlements, or any return record!</div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Ask anything…" onkeydown="if(event.key==='Enter')sendChat()"/>
+        <button class="btn btn-primary" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DELETE MODAL ═════════════════════════════════════════ -->
+<div class="modal-backdrop" id="delete-modal" onclick="handleBD(event,'delete-modal')">
+  <div class="modal narrow">
+    <div class="modal-body" style="padding:30px 26px 10px;text-align:center">
+      <div class="del-icon-wrap">🗑️</div>
+      <div class="del-title">Delete Return Record?</div>
+      <div class="del-msg">This will permanently delete the record and revert the booking back to <strong>Active</strong>. This action cannot be undone.</div>
+      <div class="del-box" id="del-detail"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" id="del-confirm-btn" onclick="confirmDelete()">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const API  = 'http://localhost:5000/api/returns';
+  const SAPI = 'http://localhost:5000/api/settlement';
+  const UPL  = 'http://localhost:5000/api/upload';
+  const AAPI = 'http://localhost:5000/api/ai';
+  const WAPI = 'http://localhost:5000/api/whatsapp';
+
+  const token = localStorage.getItem('token');
+  const user  = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) window.location.href = 'login.html';
+  const unameEl = document.getElementById('user-name');
+  if (unameEl) unameEl.textContent = user?.name || '';
+  const uavatarEl = document.getElementById('user-avatar');
+  if (uavatarEl) uavatarEl.textContent = (user?.name||'?').charAt(0).toUpperCase();
+  if (user?.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+  }
+  const rb = document.getElementById('user-role') || document.getElementById('role-badge');
+  if (rb) {
+    rb.textContent = user?.role || '';
+    rb.className   = `role-badge role-${user?.role||'staff'}`;
+  }
+  if (user?.role === 'admin') document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+  function doLogout() { localStorage.clear(); window.location.href = 'login.html'; }
+  const H = () => ({ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` });
+
+  let currentPage=1, allForExport=[], deleteTarget=null, editMode=false, photoReturnId=null, settleTarget=null, debTimer=null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('f-date').valueAsDate = new Date();
+    loadRecords(1);
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key==='Escape'){closeFormModal();closeDeleteModal();closePhotoModal();closeSettleModal();closeChatModal();}
+  });
+
+  function debounceLoad(){ clearTimeout(debTimer); debTimer = setTimeout(()=>loadRecords(1), 400); }
+
+  async function loadRecords(page=1) {
+    currentPage = page;
+    const search = document.getElementById('search-input').value.trim();
+    const status = document.getElementById('filter-status').value;
+    const cond   = document.getElementById('filter-condition').value;
+    const from   = document.getElementById('filter-from').value;
+    const to     = document.getElementById('filter-to').value;
+    const sort   = document.getElementById('sort-select').value;
+    const isFiltered = search||status||cond||from||to;
+    document.getElementById('clear-btn').style.display = isFiltered ? '' : 'none';
+
+    const params = new URLSearchParams({page, limit:15, sort, order:'desc'});
+    if(search) params.set('search',search);
+    if(status) params.set('status',status);
+    if(cond)   params.set('condition',cond);
+    if(from)   params.set('from',from);
+    if(to)     params.set('to',to);
+
+    try {
+      const res  = await fetch(`${API}?${params}`, { headers: {'Authorization':`Bearer ${token}`} });
+      if(res.status===401){ doLogout(); return; }
+      const json = await res.json();
+      if(!json.success) throw new Error(json.message);
+      allForExport = json.data;
+      renderTable(json.data);
+      renderStats(json);
+      renderPagination(json);
+      document.getElementById('result-bar').style.display = isFiltered ? '' : 'none';
+      document.getElementById('result-count').textContent = `Showing ${json.count} of ${json.total} records`;
+    } catch(err) {
+      document.getElementById('table-body').innerHTML = `<tr><td colspan="10">
+        <div class="table-empty">
+          <span class="empty-icon">⚠️</span>
+          <p style="color:#ef4444;font-weight:600">Cannot connect to backend</p>
+          <small>Make sure server.js is running on port 5000<br/>${err.message}</small>
+        </div></td></tr>`;
+    }
+  }
+
+  function renderTable(records) {
+    const tb = document.getElementById('table-body');
+    if(!records.length) {
+      tb.innerHTML = `<tr><td colspan="10"><div class="table-empty">
+        <span class="empty-icon">📋</span>
+        <p>No return records found</p>
+        <small>Click <strong>+ New Return</strong> to add the first record</small>
+      </div></td></tr>`;
+      return;
+    }
+    const isAdmin = user?.role==='admin';
+    tb.innerHTML = records.map((r,i) => `
+      <tr class="anim-fade-in-up" style="animation-delay:${i*0.03}s; cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='var(--surface-hover)'" onmouseout="this.style.background=''" onclick="if(!event.target.closest('button') && !event.target.closest('a')) window.location.href='detail.html?id='+r.id">
+        <td>
+          <span class="td-main">#${r.id}</span>
+          <div class="td-sub">Bkg #${r.booking_id}</div>
+        </td>
+        <td>
+          <span class="td-main">${r.customer_name||'—'}</span>
+          <div class="td-sub">${r.customer_phone||''}</div>
+        </td>
+        <td>
+          <span class="td-main">${r.device_name||'—'}</span>
+          <div class="td-sub">${r.serial_number||''}</div>
+        </td>
+        <td style="white-space:nowrap">${fmtDate(r.return_date)}</td>
+        <td>${condBadge(r.device_condition)}</td>
+        <td style="font-weight:600;color:var(--danger)">₹${fmt(r.repair_cost)}</td>
+        <td style="font-weight:700;color:${r.deposit_refund>0?'var(--success)':'var(--text-3)'}">₹${fmt(r.deposit_refund)}</td>
+        <td>${statusBadge(r.settlement_status)}</td>
+        <td style="text-align:center">
+          ${r.ai_damage_summary
+            ? '<span title="AI analysed" style="font-size:18px;cursor:default">🤖</span>'
+            : `<button class="btn btn-ai btn-sm" onclick="aiAutoFill(${r.id})" title="Run AI Analysis">AI</button>`}
+        </td>
+        <td>
+          <div class="actions">
+            <a class="btn btn-ghost btn-sm" href="detail.html?id=${r.id}" title="View Details">🔍</a>
+            <button class="btn btn-warning btn-sm" onclick="openEditModal(${r.id})" title="Edit">✏️</button>
+            <button class="btn btn-photo btn-sm" onclick="openPhotoModal(${r.id},'${esc(r.customer_name)} — ${esc(r.device_name)}')" title="Photos">📷</button>
+            <button class="btn btn-whatsapp btn-sm" onclick="sendWhatsAppRow(${r.id})" title="WhatsApp">📱</button>
+            ${r.settlement_status==='Pending'?`<button class="btn btn-settle btn-sm" onclick="openSettleModal(${r.id})" title="Settle">⚖️</button>`:''}
+            ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="openDeleteModal(${r.id},'${esc(r.customer_name)} — ${esc(r.device_name)}')" title="Delete">🗑️</button>`:''}
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderStats(json) {
+    document.getElementById('stat-total').textContent   = json.total||0;
+    const d = json.data;
+    document.getElementById('stat-pending').textContent = d.filter(r=>r.settlement_status==='Pending').length;
+    document.getElementById('stat-good').textContent    = d.filter(r=>r.device_condition==='Good').length;
+    document.getElementById('stat-damaged').textContent = d.filter(r=>['Major Damage','Non-Functional'].includes(r.device_condition)).length;
+  }
+
+  function renderPagination(json) {
+    const pg = document.getElementById('pagination');
+    if(json.totalPages<=1){ pg.style.display='none'; return; }
+    pg.style.display='flex';
+    document.getElementById('pg-info').textContent = `Page ${json.page} of ${json.totalPages} · ${json.total} total records`;
+    let btns = `<button class="page-btn" onclick="loadRecords(1)" ${json.page===1?'disabled':''}>«</button>`;
+    btns += `<button class="page-btn" onclick="loadRecords(${json.page-1})" ${json.page===1?'disabled':''}>‹</button>`;
+    const s=Math.max(1,json.page-2), e=Math.min(json.totalPages,json.page+2);
+    for(let i=s;i<=e;i++) btns+=`<button class="page-btn${i===json.page?' active':''}" onclick="loadRecords(${i})">${i}</button>`;
+    btns += `<button class="page-btn" onclick="loadRecords(${json.page+1})" ${json.page===json.totalPages?'disabled':''}>›</button>`;
+    btns += `<button class="page-btn" onclick="loadRecords(${json.totalPages})" ${json.page===json.totalPages?'disabled':''}>»</button>`;
+    document.getElementById('pg-btns').innerHTML = btns;
+  }
+
+  function clearFilters(){
+    ['search-input','filter-status','filter-condition','filter-from','filter-to'].forEach(id=>document.getElementById(id).value='');
+    loadRecords(1);
+  }
+
+  // ── AI Features ────────────────────────────────────────────
+  async function aiAutoFill(id) {
+    showToast('🤖 Running AI analysis…','info');
+    try {
+      const res  = await fetch(`${AAPI}/auto-fill/${id}`,{method:'POST',headers:H()});
+      const json = await res.json();
+      if(!json.success) throw new Error(json.message);
+      showToast('✅ AI analysis saved to record!','success');
+      loadRecords(currentPage);
+    } catch(err){ showToast('AI error: '+err.message,'error'); }
+  }
+
+  async function aiGenerateSummary() {
+    const cond=document.getElementById('f-cond').value;
+    const desc=document.getElementById('f-desc').value.trim();
+    const cost=document.getElementById('f-cost').value;
+    if(!cond){ showToast('Select condition first','error'); return; }
+    const panel=document.getElementById('form-ai-panel');
+    const content=document.getElementById('form-ai-content');
+    panel.style.display='';
+    content.innerHTML='<div style="color:#6d28d9;font-size:13px;display:flex;align-items:center;gap:8px"><span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> Generating summary…</div>';
+    try {
+      const res  = await fetch(`${AAPI}/damage-summary`,{method:'POST',headers:H(),body:JSON.stringify({deviceName:'Device',condition:cond,description:desc,repairCost:cost})});
+      const json = await res.json();
+      if(!json.success) throw new Error(json.message);
+      content.innerHTML=`<div class="ai-result">${json.summary}</div>
+        <button class="btn btn-ai btn-sm" onclick="document.getElementById('f-desc').value=\`${json.summary.replace(/`/g,"'")}\`">📋 Use this text</button>`;
+    } catch(err){ content.innerHTML=`<div style="color:var(--danger);font-size:12px">❌ ${err.message}</div>`; }
+  }
+
+  async function aiEstimateRepair() {
+    const cond=document.getElementById('f-cond').value;
+    const desc=document.getElementById('f-desc').value.trim();
+    if(!cond){ showToast('Select condition first','error'); return; }
+    const panel=document.getElementById('form-ai-panel');
+    const content=document.getElementById('form-ai-content');
+    panel.style.display='';
+    content.innerHTML='<div style="color:#6d28d9;font-size:13px;display:flex;align-items:center;gap:8px"><span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> Estimating repair cost…</div>';
+    try {
+      const res  = await fetch(`${AAPI}/repair-estimate`,{method:'POST',headers:H(),body:JSON.stringify({deviceName:'Device',condition:cond,description:desc})});
+      const json = await res.json();
+      if(!json.success) throw new Error(json.message);
+      const e=json.estimate;
+      content.innerHTML=`
+        <div class="ai-estimate-grid">
+          <div class="ai-est-card"><div class="ai-est-label">Minimum</div><div class="ai-est-value">₹${e.min_estimate||0}</div></div>
+          <div class="ai-est-card"><div class="ai-est-label">Recommended</div><div class="ai-est-value">₹${e.recommended||0}</div></div>
+          <div class="ai-est-card"><div class="ai-est-label">Maximum</div><div class="ai-est-value">₹${e.max_estimate||0}</div></div>
+        </div>
+        <div style="font-size:12px;color:var(--text-2);font-style:italic;margin-bottom:8px">💡 ${e.reasoning||''}</div>
+        <button class="btn btn-ai btn-sm" onclick="document.getElementById('f-cost').value=${e.recommended||0};updateCalc()">📋 Use ₹${e.recommended||0}</button>`;
+    } catch(err){ content.innerHTML=`<div style="color:var(--danger);font-size:12px">❌ ${err.message}</div>`; }
+  }
+
+  // ── AI Chat ────────────────────────────────────────────────
+  function openAIChatModal(){ document.getElementById('chat-modal').classList.add('open'); document.getElementById('chat-input').focus(); }
+  function closeChatModal() { document.getElementById('chat-modal').classList.remove('open'); }
+
+  async function sendChat() {
+    const input=document.getElementById('chat-input');
+    const msg=input.value.trim();
+    if(!msg) return;
+    input.value='';
+    const msgs=document.getElementById('chat-messages');
+    msgs.innerHTML+=`<div class="chat-msg user">${msg}</div>`;
+    msgs.innerHTML+=`<div class="chat-msg ai typing" id="typing-indicator">🤖 Thinking…</div>`;
+    msgs.scrollTop=msgs.scrollHeight;
+    try {
+      const res  = await fetch(`${AAPI}/chat`,{method:'POST',headers:H(),body:JSON.stringify({message:msg})});
+      const json = await res.json();
+      document.getElementById('typing-indicator')?.remove();
+      msgs.innerHTML+=`<div class="chat-msg ai">${json.reply||'Sorry, I could not answer that.'}</div>`;
+    } catch(err) {
+      document.getElementById('typing-indicator')?.remove();
+      msgs.innerHTML+=`<div class="chat-msg ai" style="color:var(--danger)">Error: ${err.message}</div>`;
+    }
+    msgs.scrollTop=msgs.scrollHeight;
+  }
+
+  // ── WhatsApp ───────────────────────────────────────────────
+  async function sendWhatsAppRow(id) {
+    try {
+      const res  = await fetch(`${WAPI}/notify-settlement`,{method:'POST',headers:H(),body:JSON.stringify({returnId:id})});
+      const json = await res.json();
+      if(json.wa_link){ window.open(json.wa_link,'_blank'); showToast('📱 WhatsApp opened!','success'); }
+      else if(json.success){ showToast('📱 WhatsApp sent via Twilio!','success'); }
+      else throw new Error(json.message);
+    } catch(err){ showToast('WhatsApp: '+err.message,'error'); }
+  }
+
+  // ── Settlement ─────────────────────────────────────────────
+  async function openSettleModal(id) {
+    const r=allForExport.find(x=>x.id===id); if(!r) return;
+    settleTarget=r;
+    document.getElementById('settle-title').textContent=`⚖️ Settlement — Record #${id}`;
+    document.getElementById('settle-notes').value='';
+    document.getElementById('settle-ai-panel').style.display='';
+    document.getElementById('settle-ai-draft').textContent='🤖 Generating AI email draft…';
+    document.getElementById('settle-info').innerHTML=`
+      <div class="settle-row"><span style="color:var(--text-3)">Customer</span><strong>${r.customer_name||'—'}</strong></div>
+      <div class="settle-row"><span style="color:var(--text-3)">Device</span><strong>${r.device_name||'—'}</strong></div>
+      <div class="settle-row"><span style="color:var(--text-3)">Condition</span>${condBadge(r.device_condition)}</div>
+      <div class="settle-row"><span style="color:var(--text-3)">Repair Cost</span><strong style="color:var(--danger)">₹${fmt(r.repair_cost)}</strong></div>
+      <div class="settle-row"><span style="color:var(--text-3)">Deposit Held</span><strong>₹${fmt(r.deposit_amount)}</strong></div>
+      <div class="settle-row"><span style="color:var(--text-3)">Refund to Customer</span><strong style="color:var(--success);font-size:18px">₹${fmt(r.deposit_refund)}</strong></div>`;
+    document.getElementById('settle-modal').classList.add('open');
+    try {
+      const res  = await fetch(`${AAPI}/draft-email`,{method:'POST',headers:H(),body:JSON.stringify({customerName:r.customer_name,deviceName:r.device_name,condition:r.device_condition,repairCost:r.repair_cost,depositAmount:r.deposit_amount,refundAmount:r.deposit_refund,status:'Approved',notes:''})});
+      const json = await res.json();
+      document.getElementById('settle-ai-draft').textContent = json.draft||'AI draft unavailable.';
+    } catch(e){ document.getElementById('settle-ai-draft').textContent='AI draft unavailable.'; }
+  }
+
+  function closeSettleModal(){ document.getElementById('settle-modal').classList.remove('open'); settleTarget=null; }
+
+  async function doSettle(action) {
+    if(!settleTarget) return;
+    const notes=document.getElementById('settle-notes').value.trim();
+    const btn=document.getElementById(`s-${action}-btn`);
+    btn.disabled=true; btn.textContent='Processing…';
+    try {
+      const b=action==='reject'?{reason:notes}:{notes};
+      const res=await fetch(`${SAPI}/${settleTarget.id}/${action}`,{method:'PUT',headers:H(),body:JSON.stringify(b)});
+      const json=await res.json(); if(!json.success) throw new Error(json.message);
+      const icons={approve:'✅',reject:'❌',settle:'✔'};
+      showToast(`${icons[action]} Record #${settleTarget.id} ${action}d! Email sent.`,'success');
+      closeSettleModal(); loadRecords(currentPage);
+    } catch(err){ showToast(err.message,'error'); }
+    finally{ btn.disabled=false; btn.textContent = action==='approve'?'✅ Approve + Email':action==='reject'?'❌ Reject':'✔ Mark Settled'; }
+  }
+
+  // ── Add/Edit Modal ─────────────────────────────────────────
+  function openAddModal(){
+    editMode=false;
+    document.getElementById('form-title').textContent='📦 New Return Record';
+    document.getElementById('form-submit-btn').textContent='💾 Save Return Record';
+    document.getElementById('edit-id').value='';
+    document.getElementById('grp-booking').style.display='';
+    document.getElementById('form-ai-panel').style.display='none';
+    resetForm();
+    document.getElementById('form-modal').classList.add('open');
+    setTimeout(()=>document.getElementById('f-bid').focus(),100);
+  }
+
+  function openEditModal(id){
+    const r=allForExport.find(x=>x.id===id); if(!r) return;
+    editMode=true;
+    document.getElementById('form-title').textContent=`✏️ Edit Record #${id}`;
+    document.getElementById('form-submit-btn').textContent='💾 Update Record';
+    document.getElementById('edit-id').value=id;
+    document.getElementById('grp-booking').style.display='none';
+    document.getElementById('f-date').value  = r.return_date?.slice(0,10)||'';
+    document.getElementById('f-cond').value  = r.device_condition||'';
+    document.getElementById('f-desc').value  = r.damage_description||'';
+    document.getElementById('f-cost').value  = r.repair_cost||'';
+    document.getElementById('f-status').value= r.settlement_status||'Pending';
+    document.getElementById('f-notes').value = r.notes||'';
+    updateCalc();
+    document.getElementById('form-modal').classList.add('open');
+  }
+
+  function closeFormModal(){ document.getElementById('form-modal').classList.remove('open'); resetForm(); clearAllFE(); }
+
+  function resetForm(){
+    ['f-bid','f-desc','f-cost','f-notes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-date').valueAsDate=new Date();
+    document.getElementById('f-cond').value='';
+    document.getElementById('f-status').value='Pending';
+    document.getElementById('calc-box').classList.remove('visible');
+    const b=document.getElementById('form-submit-btn');
+    b.disabled=false; b.textContent='💾 Save Return Record';
+  }
+
+  // ── Photo Modal ────────────────────────────────────────────
+  function openPhotoModal(id,label){
+    photoReturnId=id;
+    document.getElementById('photo-modal-title').textContent=`📸 ${label}`;
+    document.getElementById('upload-status').textContent='';
+    document.getElementById('photo-modal').classList.add('open');
+    loadPhotos(id);
+  }
+  function closePhotoModal(){ document.getElementById('photo-modal').classList.remove('open'); photoReturnId=null; }
+
+  async function loadPhotos(id){
+    const g=document.getElementById('photo-grid');
+    g.innerHTML='<div class="no-photos">☁️ Loading from Cloudinary…</div>';
+    try{
+      const res=await fetch(`${UPL}/damage/${id}`,{headers:{'Authorization':`Bearer ${token}`}});
+      const json=await res.json();
+      if(!json.data.length){ g.innerHTML='<div class="no-photos">No photos yet. Upload one above.</div>'; return; }
+      g.innerHTML=json.data.map(p=>`
+        <div class="photo-item" onclick="window.open('${p.photo_url}','_blank')">
+          <img src="${p.thumbnail_url||p.photo_url}" loading="lazy" alt="Damage photo"/>
+          <button class="del-photo" onclick="event.stopPropagation();deletePhoto(${p.id})">✕</button>
+        </div>`).join('');
+    } catch(e){ g.innerHTML=`<div class="no-photos" style="color:var(--danger)">${e.message}</div>`; }
+  }
+
+  function handleFileSelect(e){ uploadFiles([...e.target.files]); e.target.value=''; }
+  function handleDrop(e){ e.preventDefault(); document.getElementById('dropzone').classList.remove('drag'); uploadFiles([...e.dataTransfer.files]); }
+
+  async function uploadFiles(files){
+    const valid=files.filter(f=>['image/jpeg','image/png','image/webp'].includes(f.type)&&f.size<=5*1024*1024);
+    if(!valid.length){ showToast('Only JPG/PNG/WEBP under 5MB','error'); return; }
+    document.getElementById('upload-status').textContent=`☁️ Uploading ${valid.length} photo(s) to Cloudinary…`;
+    let ok=0;
+    for(const f of valid){
+      const fd=new FormData(); fd.append('photo',f);
+      try{
+        const res=await fetch(`${UPL}/damage/${photoReturnId}`,{method:'POST',headers:{'Authorization':`Bearer ${token}`},body:fd});
+        const j=await res.json(); if(j.success) ok++;
+      } catch(e){}
+    }
+    document.getElementById('upload-status').textContent=`✅ ${ok} of ${valid.length} uploaded to Cloudinary!`;
+    loadPhotos(photoReturnId);
+    showToast(`☁️ ${ok} photo(s) saved to Cloudinary`,'success');
+  }
+
+  async function deletePhoto(id){
+    if(!confirm('Delete this photo from Cloudinary?')) return;
+    const res=await fetch(`${UPL}/damage/photo/${id}`,{method:'DELETE',headers:{'Authorization':`Bearer ${token}`}});
+    const j=await res.json();
+    if(j.success){ showToast('Photo deleted','success'); loadPhotos(photoReturnId); }
+    else showToast(j.message,'error');
+  }
+
+  // ── Delete Modal ───────────────────────────────────────────
+  function openDeleteModal(id,label){ deleteTarget={id,label}; document.getElementById('del-detail').textContent=`Record #${id}: ${label}`; document.getElementById('delete-modal').classList.add('open'); }
+  function closeDeleteModal(){ document.getElementById('delete-modal').classList.remove('open'); deleteTarget=null; }
+
+  async function confirmDelete(){
+    if(!deleteTarget) return;
+    const btn=document.getElementById('del-confirm-btn');
+    btn.disabled=true; btn.textContent='Deleting…';
+    try{
+      const res=await fetch(`${API}/${deleteTarget.id}`,{method:'DELETE',headers:{'Authorization':`Bearer ${token}`}});
+      const json=await res.json(); if(!json.success) throw new Error(json.message);
+      showToast(`🗑️ Record #${deleteTarget.id} deleted.`,'success');
+      closeDeleteModal(); loadRecords(currentPage);
+    } catch(err){ showToast(err.message,'error'); }
+    finally{ btn.disabled=false; btn.textContent='Yes, Delete'; }
+  }
+
+  function handleBD(e,id){ if(e.target===document.getElementById(id)){if(id==='form-modal')closeFormModal();if(id==='delete-modal')closeDeleteModal();if(id==='photo-modal')closePhotoModal();if(id==='settle-modal')closeSettleModal();if(id==='chat-modal')closeChatModal();} }
+
+  // ── Submit ─────────────────────────────────────────────────
+  async function submitForm(){
+    clearAllFE(); if(!validateForm()) return;
+    const btn=document.getElementById('form-submit-btn');
+    btn.disabled=true; btn.textContent=editMode?'Updating…':'Saving…';
+    try{
+      let json;
+      if(editMode){
+        const id=document.getElementById('edit-id').value;
+        const p={return_date:document.getElementById('f-date').value,device_condition:document.getElementById('f-cond').value,damage_description:document.getElementById('f-desc').value.trim()||null,repair_cost:+document.getElementById('f-cost').value||0,settlement_status:document.getElementById('f-status').value,notes:document.getElementById('f-notes').value.trim()||null};
+        const res=await fetch(`${API}/${id}`,{method:'PUT',headers:H(),body:JSON.stringify(p)});
+        json=await res.json(); if(!json.success) throw new Error(json.message);
+        showToast(`✅ Record #${id} updated!`,'success');
+      } else {
+        const p={booking_id:+document.getElementById('f-bid').value,return_date:document.getElementById('f-date').value,device_condition:document.getElementById('f-cond').value,damage_description:document.getElementById('f-desc').value.trim()||null,repair_cost:+document.getElementById('f-cost').value||0,notes:document.getElementById('f-notes').value.trim()||null};
+        const res=await fetch(API,{method:'POST',headers:H(),body:JSON.stringify(p)});
+        json=await res.json(); if(!json.success) throw new Error(json.message);
+        showToast(`✅ Record #${json.data.id} saved!`,'success');
+      }
+      closeFormModal(); loadRecords(currentPage);
+    } catch(err){ showToast(err.message||'Network error','error'); btn.disabled=false; btn.textContent=editMode?'💾 Update Record':'💾 Save Return Record'; }
+  }
+
+  // ── Export ─────────────────────────────────────────────────
+  function exportExcel(){
+    if(!allForExport.length){ showToast('No records to export','error'); return; }
+    const rows=allForExport.map(r=>({'ID':r.id,'Customer':r.customer_name||'','Phone':r.customer_phone||'','Device':r.device_name||'','Serial':r.serial_number||'','Return Date':r.return_date?.slice(0,10)||'','Condition':r.device_condition,'Damage':r.damage_description||'','Repair Cost':+r.repair_cost||0,'Deposit':+r.deposit_amount||0,'Deduction':+r.deposit_deduction||0,'Refund':+r.deposit_refund||0,'Status':r.settlement_status,'AI Summary':r.ai_damage_summary||'','Notes':r.notes||''}));
+    const ws=XLSX.utils.json_to_sheet(rows);
+    ws['!cols']=[{wch:5},{wch:20},{wch:14},{wch:20},{wch:14},{wch:14},{wch:18},{wch:30},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12},{wch:40},{wch:20}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Return Records');
+    XLSX.writeFile(wb,`device-returns-${new Date().toISOString().slice(0,10)}.xlsx`);
+    showToast(`📊 Excel exported — ${allForExport.length} records`,'success');
+  }
+
+  function exportPDF(){
+    if(!allForExport.length){ showToast('No records to export','error'); return; }
+    const{jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    doc.setFontSize(16); doc.setFont('helvetica','bold');
+    doc.text('Device Return & Damage Tracker — One Point Solutions',14,16);
+    doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(100);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}   Records: ${allForExport.length}   By: ${user?.name||''}`,14,23);
+    doc.setTextColor(0);
+    doc.autoTable({startY:28,head:[['#','Customer','Device','Return Date','Condition','Repair(Rs.)','Refund(Rs.)','Status']],body:allForExport.map(r=>[`#${r.id}`,`${r.customer_name||'—'}\n${r.customer_phone||''}`,`${r.device_name||'—'}\n${r.serial_number||''}`,r.return_date?.slice(0,10)||'—',r.device_condition,fmt(r.repair_cost),fmt(r.deposit_refund),r.settlement_status]),headStyles:{fillColor:[79,70,229],textColor:255,fontStyle:'bold',fontSize:9},bodyStyles:{fontSize:8,cellPadding:3},alternateRowStyles:{fillColor:[248,250,252]}});
+    const pc=doc.internal.getNumberOfPages();
+    for(let i=1;i<=pc;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(150);doc.text(`Page ${i} of ${pc} — Device Return Tracker`,14,doc.internal.pageSize.height-8);}
+    doc.save(`device-returns-${new Date().toISOString().slice(0,10)}.pdf`);
+    showToast(`📄 PDF exported — ${allForExport.length} records`,'success');
+  }
+
+  // ── Helpers ────────────────────────────────────────────────
+  function updateCalc(){
+    const rep=+document.getElementById('f-cost').value||0;
+    const cnd=document.getElementById('f-cond').value;
+    if(!cnd){document.getElementById('calc-box').classList.remove('visible');return;}
+    const eff=cnd==='Good'?0:rep;
+    document.getElementById('calc-box').classList.add('visible');
+    document.getElementById('c-rep').textContent='₹'+fmt(eff);
+    document.getElementById('c-ref').textContent=cnd==='Good'?'Full deposit refunded':'Deposit − repair cost';
+  }
+
+  function validateForm(){
+    let ok=true;
+    if(!editMode){const b=document.getElementById('f-bid').value;if(!b||+b<1){showFE('f-bid','Enter valid Booking ID');ok=false;}}
+    if(!document.getElementById('f-date').value){showFE('f-date','Required');ok=false;}
+    if(!document.getElementById('f-cond').value){showFE('f-cond','Select a condition');ok=false;}
+    return ok;
+  }
+
+  function showFE(id,msg){const el=document.getElementById(id);el.classList.add('error');el.style.borderColor='var(--danger)';el.style.boxShadow='var(--shadow-danger-glow)';let e=el.parentNode.querySelector('.ferr');if(!e){e=document.createElement('span');e.className='ferr';e.style.cssText='font-size:11px;color:var(--danger);margin-top:3px;';el.parentNode.appendChild(e);}e.textContent=msg;}
+  function clearFE(id){const el=document.getElementById(id);el.classList.remove('error');el.style.borderColor='';el.style.boxShadow='';const e=el.parentNode.querySelector('.ferr');if(e)e.remove();}
+  function clearAllFE(){['f-bid','f-date','f-cond'].forEach(clearFE);}
+
+  const fmt=n=>parseFloat(n||0).toFixed(2);
+  const esc=s=>(s||'').replace(/'/g,"\\'");
+  const fmtDate=d=>d?new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—';
+
+  function condBadge(c){
+    const m={'Good':'badge-good','Minor Scratches':'badge-minor','Major Damage':'badge-major','Non-Functional':'badge-nonfunc'};
+    const icons={'Good':'✅','Minor Scratches':'⚠️','Major Damage':'❌','Non-Functional':'🚫'};
+    return `<span class="badge ${m[c]||''}">${icons[c]||''} ${c||'—'}</span>`;
+  }
+  function statusBadge(s){
+    const m={'Pending':'badge-pending','Approved':'badge-approved','Settled':'badge-settled','Rejected':'badge-rejected'};
+    const icons={'Pending':'⏳','Approved':'✅','Settled':'💰','Rejected':'❌'};
+    return `<span class="badge ${m[s]||''}">${icons[s]||''} ${s||'—'}</span>`;
+  }
+  function showToast(msg,type='success'){
+    const t=document.getElementById('toast');
+    const icons={success:'✅',error:'❌',info:'ℹ️'};
+    t.innerHTML=`<span>${icons[type]||''}</span><span>${msg}</span>`;
+    t.className=`show ${type}`;
+    setTimeout(()=>{t.className='';},4000);
+  }
+</script>
+
+<script>
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    if (newTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('theme', newTheme);
+  }
+</script>
+</body>
+</html>

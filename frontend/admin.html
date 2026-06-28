@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Admin Panel — Device Return Tracker</title>
+  <link rel="stylesheet" href="style.css"/>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+</head>
+<body>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <div class="brand-icon">📦</div>
+    Device Returns
+  </a>
+  
+  <div class="user-chip">
+    <div class="avatar" id="user-avatar">?</div>
+    <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;" id="user-name">…</div>
+  </div>
+
+    <div class="nav-links">
+    <a class="nav-link" href="index.html">🏠 Dashboard</a>
+    <a class="nav-link" href="bookings.html">📝 Rental Bookings</a>
+    <a class="nav-link" href="return-form.html">📦 Return Form</a>
+    <a class="nav-link" href="analytics.html">📊 Analytics</a>
+    <a class="nav-link" href="kyc.html">📋 KYC</a>
+    <a class="nav-link" href="logistics.html">🚚 Logistics</a>
+    <a class="nav-link" href="maintenance.html">🔧 Maintenance</a>
+    <a class="nav-link" href="qr-scan.html">📷 QR Scan</a>
+    <a class="nav-link admin-only active" href="admin.html" style="display:none">⚙️ Admin</a>
+    <a class="nav-link admin-only" href="audit.html" style="display:none">📋 Audit</a>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="theme-toggle-btn" onclick="toggleTheme()">🌓 Toggle Theme</button>
+    <button class="btn-logout" onclick="doLogout()">🚪 Logout</button>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+
+<div class="page-inner" id="main-content" style="display:none;max-width:900px">
+  <div class="page-header"><div class="page-title">⚙️ Admin Panel</div></div>
+
+  <div class="card anim-fade-in-up" style="margin-bottom:24px">
+    <div class="card-header"><div class="card-title">👥 User Management</div><button class="btn btn-primary btn-sm" onclick="openAddUser()">+ Add Staff</button></div>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Action</th></tr></thead><tbody id="users-table"><tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-3)">Loading…</td></tr></tbody></table></div>
+  </div>
+
+  <div class="card anim-fade-in-up">
+    <div class="card-header"><div class="card-title">ℹ️ System Information</div></div>
+    <div style="padding:22px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="info-card"><div class="info-label">Project</div><div class="info-value">Device Return & Damage Tracker</div><div class="info-sub">One Point Solutions Internship</div></div>
+      <div class="info-card"><div class="info-label">API Version</div><div class="info-value">v5.0 — Complete</div><div class="info-sub">Express + PostgreSQL + JWT</div></div>
+      <div class="info-card" style="grid-column:1/-1"><div class="info-label">Tech Stack</div><div class="info-value" style="font-size:13px">Node.js · Express · PostgreSQL · JWT · Cloudinary · Gemini AI · Nodemailer · WhatsApp · Chart.js · jsPDF · SheetJS</div></div>
+      <div class="info-card" style="grid-column:1/-1"><div class="info-label">Features</div><div class="info-sub" style="font-size:12px;line-height:1.8">CRUD · Auth · Role Access · Pagination · Filters · Excel/PDF Export · Photo Upload · Settlement Workflow · Email + WhatsApp · Audit Logs · Analytics · KYC · Logistics · Maintenance · AI Analysis</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="page access-denied" id="denied-content" style="display:none">
+  <div class="icon">🔒</div><h2>Admin Access Required</h2><p>You don't have permission to view this page.</p>
+  <a href="index.html" class="btn btn-primary">← Back to Dashboard</a>
+</div>
+
+<div class="modal-backdrop" id="add-user-modal" onclick="if(event.target===this)closeAddUser()">
+  <div class="modal narrow">
+    <div class="modal-header"><div class="modal-title">Add Staff Member</div><button class="modal-close" onclick="closeAddUser()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:14px"><label>Full Name <span class="req">*</span></label><input type="text" id="u-name" placeholder="Staff name"/></div>
+      <div class="form-group" style="margin-bottom:14px"><label>Email <span class="req">*</span></label><input type="email" id="u-email" placeholder="staff@example.com"/></div>
+      <div class="form-group" style="margin-bottom:14px"><label>Password <span class="req">*</span></label><input type="password" id="u-pass" placeholder="Min 6 characters"/></div>
+      <div class="form-group"><label>Role</label><select id="u-role"><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeAddUser()">Cancel</button><button class="btn btn-primary" id="add-user-btn" onclick="addUser()">Create User</button></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+</main>
+<script>
+  const token = localStorage.getItem('token'), user = JSON.parse(localStorage.getItem('user')||'null');
+    if (!token || !user) window.location.href = 'login.html';
+  const unameEl = document.getElementById('user-name');
+  if (unameEl) unameEl.textContent = user?.name || '';
+  const uavatarEl = document.getElementById('user-avatar');
+  if (uavatarEl) uavatarEl.textContent = (user?.name||'?').charAt(0).toUpperCase();
+  if (user?.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+  }
+  function doLogout(){localStorage.clear();window.location.href='login.html';}
+  const H = () => ({'Content-Type':'application/json','Authorization':`Bearer ${token}`});
+  const AUTH_API = 'http://localhost:5000/api/auth';
+
+  if (user?.role!=='admin') { document.getElementById('denied-content').style.display='block'; }
+  else { document.getElementById('main-content').style.display='block'; loadUsers(); }
+
+  async function loadUsers(){
+    try{
+      const res=await fetch(`${AUTH_API}/users`,{headers:{'Authorization':`Bearer ${token}`}});
+      const json=await res.json(); if(!json.success) throw new Error(json.message);
+      const tb=document.getElementById('users-table');
+      if(!json.data.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-3)">No users found</td></tr>';return;}
+      tb.innerHTML=json.data.map(u=>`
+        <tr>
+          <td>#${u.id}</td>
+          <td><strong>${u.name}</strong>${u.id===user.id?' <span style="font-size:11px;color:var(--text-3)">(you)</span>':''}</td>
+          <td>${u.email}</td>
+          <td><span class="badge ${u.role==='admin'?'badge-approved':'badge-pending'}">${u.role}</span></td>
+          <td style="font-size:12px;color:var(--text-3)">${new Date(u.created_at).toLocaleDateString('en-IN')}</td>
+          <td>${u.id!==user.id?`<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id},'${u.name}')">Remove</button>`:'<span style="font-size:12px;color:var(--text-3)">—</span>'}</td>
+        </tr>`).join('');
+    }catch(err){showToast(err.message,'error');}
+  }
+
+  function openAddUser(){document.getElementById('add-user-modal').classList.add('open');}
+  function closeAddUser(){document.getElementById('add-user-modal').classList.remove('open');['u-name','u-email','u-pass'].forEach(id=>document.getElementById(id).value='');}
+
+  async function addUser(){
+    const name=document.getElementById('u-name').value.trim(), email=document.getElementById('u-email').value.trim();
+    const password=document.getElementById('u-pass').value, role=document.getElementById('u-role').value;
+    if(!name||!email||!password){showToast('All fields required','error');return;}
+    if(password.length<6){showToast('Password min 6 chars','error');return;}
+    const btn=document.getElementById('add-user-btn');btn.disabled=true;btn.textContent='Creating…';
+    try{
+      const res=await fetch(`${AUTH_API}/users`,{method:'POST',headers:H(),body:JSON.stringify({name,email,password,role})});
+      const json=await res.json(); if(!json.success) throw new Error(json.message);
+      showToast(`✅ ${name} added as ${role}`,'success');closeAddUser();loadUsers();
+    }catch(err){showToast(err.message,'error');}
+    finally{btn.disabled=false;btn.textContent='Create User';}
+  }
+
+  async function deleteUser(id,name){
+    if(!confirm(`Remove ${name}?`))return;
+    try{
+      const res=await fetch(`${AUTH_API}/users/${id}`,{method:'DELETE',headers:{'Authorization':`Bearer ${token}`}});
+      const json=await res.json(); if(!json.success) throw new Error(json.message);
+      showToast(`✅ ${name} removed`,'success');loadUsers();
+    }catch(err){showToast(err.message,'error');}
+  }
+
+  function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;setTimeout(()=>{t.className='';},3500);}
+</script>
+
+<script>
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    if (newTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('theme', newTheme);
+  }
+</script>
+</body>
+</html>

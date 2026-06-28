@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>KYC & Agreements — Device Return Tracker</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <div class="brand-icon">📦</div>
+    Device Returns
+  </a>
+  
+  <div class="user-chip">
+    <div class="avatar" id="user-avatar">?</div>
+    <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;" id="user-name">…</div>
+  </div>
+
+    <div class="nav-links">
+    <a class="nav-link" href="index.html">🏠 Dashboard</a>
+    <a class="nav-link" href="bookings.html">📝 Rental Bookings</a>
+    <a class="nav-link" href="return-form.html">📦 Return Form</a>
+    <a class="nav-link" href="analytics.html">📊 Analytics</a>
+    <a class="nav-link active" href="kyc.html">📋 KYC</a>
+    <a class="nav-link" href="logistics.html">🚚 Logistics</a>
+    <a class="nav-link" href="maintenance.html">🔧 Maintenance</a>
+    <a class="nav-link" href="qr-scan.html">📷 QR Scan</a>
+    <a class="nav-link admin-only" href="admin.html" style="display:none">⚙️ Admin</a>
+    <a class="nav-link admin-only" href="audit.html" style="display:none">📋 Audit</a>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="theme-toggle-btn" onclick="toggleTheme()">🌓 Toggle Theme</button>
+    <button class="btn-logout" onclick="doLogout()">🚪 Logout</button>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+
+<div class="page-inner">
+  <div class="page-header">
+    <div>
+      <div class="page-title">📋 KYC & Rental Agreements</div>
+    </div>
+    <button class="btn btn-primary" onclick="openAddModal()">+ New KYC Record</button>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-label">Total KYC</div><div class="stat-value blue" id="stat-total">—</div></div>
+    <div class="stat-card"><div class="stat-label">Verified</div><div class="stat-value green" id="stat-verified">—</div></div>
+    <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value orange" id="stat-pending">—</div></div>
+    <div class="stat-card"><div class="stat-label">Agreements Signed</div><div class="stat-value green" id="stat-signed">—</div></div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search customer name, phone…" oninput="debounce()"/>
+      </div>
+      <select class="fs" id="filter-status" onchange="loadKYC()">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Verified">Verified</option>
+        <option value="Rejected">Rejected</option>
+      </select>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Customer</th><th>ID Type</th><th>ID Number</th><th>Agreement</th><th>Deposit</th><th>KYC Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td colspan="8"><div class="table-empty"><div class="icon">⏳</div><p>Loading…</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-backdrop" id="form-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">New KYC Record</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id"/>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="f-customer">Customer <span class="req">*</span></label>
+          <select id="f-customer"><option value="">— Select customer —</option></select>
+        </div>
+        <div class="form-group">
+          <label for="f-idtype">ID Type <span class="req">*</span></label>
+          <select id="f-idtype">
+            <option value="">— Select —</option>
+            <option value="Aadhaar">Aadhaar Card</option>
+            <option value="PAN">PAN Card</option>
+            <option value="Passport">Passport</option>
+            <option value="Driving License">Driving License</option>
+            <option value="Voter ID">Voter ID</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="f-idnum">ID Number <span class="req">*</span></label>
+          <input type="text" id="f-idnum" placeholder="e.g. 1234 5678 9012"/>
+        </div>
+        <div class="form-group full">
+          <label for="f-address">Address</label>
+          <textarea id="f-address" placeholder="Customer full address…"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="f-deposit">Deposit Amount (₹)</label>
+          <input type="number" id="f-deposit" placeholder="0.00" min="0" step="0.01"/>
+        </div>
+        <div class="form-group">
+          <label for="f-kyc-status">KYC Status</label>
+          <select id="f-kyc-status">
+            <option value="Pending">Pending</option>
+            <option value="Verified">Verified</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <div class="checkbox-row">
+            <input type="checkbox" id="f-agreement"/>
+            <label for="f-agreement">Rental Agreement Signed by Customer</label>
+          </div>
+          <div class="checkbox-row">
+            <input type="checkbox" id="f-deposit-paid"/>
+            <label for="f-deposit-paid">Security Deposit Paid</label>
+          </div>
+        </div>
+
+        <!-- Agreement Preview -->
+        <div class="form-group full">
+          <label>Rental Agreement Preview</label>
+          <div class="agreement-box">
+            <strong>RENTAL AGREEMENT — ONE POINT SOLUTIONS</strong><br/><br/>
+            This Rental Agreement ("Agreement") is entered between <strong>One Point Solutions</strong> ("Company") and the Customer named above.<br/><br/>
+            <strong>1. Device Rental:</strong> The Customer agrees to rent the specified device(s) for the agreed rental period.<br/>
+            <strong>2. Deposit:</strong> A refundable security deposit is collected. Deductions apply for damage beyond normal wear.<br/>
+            <strong>3. Return Condition:</strong> Device must be returned in the same condition. Any damage will be assessed and deducted from the deposit.<br/>
+            <strong>4. Late Return:</strong> Late returns incur additional daily charges as per the rental rate.<br/>
+            <strong>5. Damage Liability:</strong> Customer is liable for damage, theft, or loss of the device during the rental period.<br/>
+            <strong>6. Photo Evidence:</strong> Device condition is photographed at pickup and return for documentation.<br/><br/>
+            By checking "Agreement Signed", the customer acknowledges reading and agreeing to all terms above.
+          </div>
+          <div class="signature-area" id="sig-area">
+            ✍️ Customer signature will be captured here<br/>
+            <small>(Digital signature module coming in next version)</small>
+          </div>
+        </div>
+
+        <div class="form-group full">
+          <label for="f-notes">Notes</label>
+          <textarea id="f-notes" placeholder="Any additional notes…" style="min-height:60px"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="submit-btn" onclick="initiateOTP()">Send OTP & Verify</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-backdrop" id="otp-modal" style="z-index:1100;">
+  <div class="modal" style="max-width: 400px; text-align: center;">
+    <h3 style="margin-bottom: 10px;">Enter OTP</h3>
+    <p style="color: var(--text-2); font-size: 13px; margin-bottom: 20px;">An OTP has been sent to the customer's email and phone.</p>
+    <input type="text" id="f-otp" placeholder="6-digit OTP" maxlength="6" style="font-size: 20px; text-align: center; letter-spacing: 4px; padding: 12px; margin-bottom: 20px; width: 100%;">
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button class="btn btn-ghost" onclick="document.getElementById('otp-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-primary" id="verify-otp-btn" onclick="submitOTP()">Verify & Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+</main>
+<script>
+  const API   = 'http://localhost:5000/api/kyc';
+  const token = localStorage.getItem('token');
+  const user  = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) window.location.href = 'login.html';
+  const unameEl = document.getElementById('user-name');
+  if (unameEl) unameEl.textContent = user?.name || '';
+  const uavatarEl = document.getElementById('user-avatar');
+  if (uavatarEl) uavatarEl.textContent = (user?.name||'?').charAt(0).toUpperCase();
+  if (user?.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+  }
+  function doLogout() { localStorage.clear(); window.location.href = 'login.html'; }
+  const H = () => ({ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` });
+
+  let allRecords=[], editMode=false, debTimer=null, customers=[];
+
+  document.addEventListener('DOMContentLoaded', () => { loadCustomers(); loadKYC(); });
+  document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+  function debounce() { clearTimeout(debTimer); debTimer = setTimeout(loadKYC, 400); }
+
+  async function loadCustomers() {
+    try {
+      const res  = await fetch(`${API}/meta/customers`, { headers: {'Authorization':`Bearer ${token}`} });
+      const json = await res.json();
+      if (!json.success) return;
+      customers = json.data;
+      const sel = document.getElementById('f-customer');
+      sel.innerHTML = '<option value="">— Select customer —</option>' +
+        json.data.map(c => `<option value="${c.id}">${c.name} — ${c.phone} (${c.customer_type})</option>`).join('');
+    } catch(e) { console.error(e); }
+  }
+
+  async function loadKYC() {
+    const search = document.getElementById('search-input').value.trim();
+    const status = document.getElementById('filter-status').value;
+    const params = new URLSearchParams({ page:1, limit:50 });
+    if (search) params.set('search', search);
+    try {
+      const res  = await fetch(`${API}?${params}`, { headers: {'Authorization':`Bearer ${token}`} });
+      if (res.status===401) { doLogout(); return; }
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+      allRecords = status ? json.data.filter(r=>r.kyc_status===status) : json.data;
+      renderTable(allRecords);
+      renderStats(json.data);
+    } catch(err) {
+      document.getElementById('table-body').innerHTML = `<tr><td colspan="8"><div class="table-empty"><div class="icon">⚠️</div><p style="color:#dc2626">${err.message}</p></div></td></tr>`;
+    }
+  }
+
+  function renderStats(data) {
+    document.getElementById('stat-total').textContent   = data.length;
+    document.getElementById('stat-verified').textContent= data.filter(r=>r.kyc_status==='Verified').length;
+    document.getElementById('stat-pending').textContent = data.filter(r=>r.kyc_status==='Pending').length;
+    document.getElementById('stat-signed').textContent  = data.filter(r=>r.agreement_signed).length;
+  }
+
+  function renderTable(data) {
+    const tb = document.getElementById('table-body');
+    if (!data.length) { tb.innerHTML=`<tr><td colspan="8"><div class="table-empty"><div class="icon">📋</div><p>No KYC records found.</p></div></td></tr>`; return; }
+    const sc = {'Verified':'badge-verified','Pending':'badge-pending','Rejected':'badge-rejected'};
+    tb.innerHTML = data.map(r => `
+      <tr>
+        <td><span class="td-main">#${r.id}</span></td>
+        <td><span class="td-main">${r.customer_name||'—'}</span><div class="td-sub">${r.phone||''} · ${r.customer_type||''}</div></td>
+        <td>${r.id_type||'—'}</td>
+        <td style="font-family:monospace;font-size:12px">${r.id_number||'—'}</td>
+        <td style="text-align:center">${r.agreement_signed?'<span class="check">✅</span>':'<span class="cross">❌</span>'}</td>
+        <td>${r.deposit_paid?`<span style="color:var(--success);font-weight:600">₹${fmt(r.deposit_amount)} ✅</span>`:'<span style="color:var(--text-3)">Not paid</span>'}</td>
+        <td><span class="badge ${sc[r.kyc_status]||''}">${r.kyc_status}</span></td>
+        <td><div style="display:flex;gap:4px">
+          <button class="btn btn-warning btn-sm" onclick="openEditModal(${r.id})">✏️ Edit</button>
+          ${r.kyc_status==='Pending'?`<button class="btn btn-success btn-sm" onclick="verifyKYC(${r.id})">✅ Verify</button>`:''}
+        </div></td>
+      </tr>`).join('');
+  }
+
+  function openAddModal() {
+    editMode = false;
+    document.getElementById('modal-title').textContent = 'New KYC Record';
+    document.getElementById('submit-btn').textContent  = 'Send OTP & Verify';
+    document.getElementById('edit-id').value = '';
+    resetForm();
+    document.getElementById('form-modal').classList.add('open');
+  }
+
+  function openEditModal(id) {
+    const r = allRecords.find(x=>x.id===id); if(!r) return;
+    editMode = true;
+    document.getElementById('modal-title').textContent = `Edit KYC #${id}`;
+    document.getElementById('submit-btn').textContent  = 'Update KYC';
+    document.getElementById('edit-id').value = id;
+    document.getElementById('f-customer').value   = r.customer_id || '';
+    document.getElementById('f-idtype').value     = r.id_type     || '';
+    document.getElementById('f-idnum').value      = r.id_number   || '';
+    document.getElementById('f-address').value    = r.address     || '';
+    document.getElementById('f-deposit').value    = r.deposit_amount || '';
+    document.getElementById('f-kyc-status').value = r.kyc_status  || 'Pending';
+    document.getElementById('f-agreement').checked  = r.agreement_signed || false;
+    document.getElementById('f-deposit-paid').checked= r.deposit_paid    || false;
+    document.getElementById('f-notes').value      = r.notes       || '';
+    document.getElementById('form-modal').classList.add('open');
+  }
+
+  function closeModal() { document.getElementById('form-modal').classList.remove('open'); resetForm(); }
+  function resetForm() {
+    ['f-idnum','f-address','f-deposit','f-notes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-customer').value=''; document.getElementById('f-idtype').value='';
+    document.getElementById('f-kyc-status').value='Pending';
+    document.getElementById('f-agreement').checked=false; document.getElementById('f-deposit-paid').checked=false;
+    const btn=document.getElementById('submit-btn'); btn.disabled=false; btn.textContent='Send OTP & Verify';
+  }
+
+  
+  async function initiateOTP() {
+    if (editMode) {
+      // If editing, skip OTP
+      return submitKYC();
+    }
+    
+    // Validate form first
+    const customer_id = document.getElementById('f-customer').value;
+    const id_type     = document.getElementById('f-idtype').value;
+    const id_number   = document.getElementById('f-idnum').value.trim();
+    if (!customer_id) { showToast('Select a customer','error'); return; }
+    if (!id_type || !id_number) { showToast('ID Type and ID Number are required','error'); return; }
+    
+    const cleanId = id_number.replace(/\s+/g, '').toUpperCase();
+    if (id_type === 'Aadhaar' && !/^\d{12}$/.test(cleanId)) {
+      showToast('Invalid Aadhaar! Must be 12 digits.','error'); return;
+    }
+    if (id_type === 'PAN' && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanId)) {
+      showToast('Invalid PAN format!','error'); return;
+    }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true; btn.textContent = 'Sending OTP...';
+
+    try {
+      const res = await fetch(`${API}/send-otp`, { method: 'POST', headers: H(), body: JSON.stringify({ customer_id: +customer_id }) });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+      
+      showToast('OTP sent to customer!', 'success');
+      document.getElementById('f-otp').value = '';
+      document.getElementById('otp-modal').classList.add('open');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Send OTP & Verify';
+    }
+  }
+
+  async function submitOTP() {
+    const customer_id = document.getElementById('f-customer').value;
+    const otp = document.getElementById('f-otp').value.trim();
+    if (otp.length !== 6) { showToast('Enter 6-digit OTP', 'error'); return; }
+
+    const btn = document.getElementById('verify-otp-btn');
+    btn.disabled = true; btn.textContent = 'Verifying...';
+
+    try {
+      const res = await fetch(`${API}/verify-otp`, { method: 'POST', headers: H(), body: JSON.stringify({ customer_id: +customer_id, otp }) });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+      
+      // OTP matched, now save KYC
+      showToast('OTP Verified! Saving KYC...', 'success');
+      document.getElementById('otp-modal').classList.remove('open');
+      
+      // Ensure status is Verified for new records
+      document.getElementById('f-kyc-status').value = 'Verified';
+      await submitKYC();
+    } catch (err) {
+      showToast(err.message, 'error');
+      btn.disabled = false; btn.textContent = 'Verify & Save';
+    }
+  }
+
+  async function submitKYC() {
+    const btn = document.getElementById("submit-btn");
+    // Remove duplicate validation since initiateOTP does it
+
+    const customer_id = document.getElementById('f-customer').value;
+    const id_type     = document.getElementById('f-idtype').value;
+    const id_number   = document.getElementById('f-idnum').value.trim();
+    if (!id_type || !id_number) { showToast('ID Type and ID Number are required','error'); return; }
+    if (!editMode && !customer_id) { showToast('Select a customer','error'); return; }
+
+    const cleanId = id_number.replace(/\s+/g, '').toUpperCase();
+    if (id_type === 'Aadhaar' && !/^\d{12}$/.test(cleanId)) {
+      showToast('Invalid Aadhaar! Must be 12 digits.','error'); return;
+    }
+    if (id_type === 'PAN' && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanId)) {
+      showToast('Invalid PAN format! (e.g. ABCDE1234F)','error'); return;
+    }
+
+    btn.disabled=true; btn.textContent=editMode?'Updating…':'Saving…';
+
+    const payload = {
+      customer_id:      +customer_id,
+      id_type, id_number,
+      address:          document.getElementById('f-address').value.trim()||null,
+      deposit_amount:   +document.getElementById('f-deposit').value||0,
+      kyc_status:       document.getElementById('f-kyc-status').value,
+      agreement_signed: document.getElementById('f-agreement').checked,
+      deposit_paid:     document.getElementById('f-deposit-paid').checked,
+      notes:            document.getElementById('f-notes').value.trim()||null
+    };
+
+    try {
+      const id  = document.getElementById('edit-id').value;
+      const url = editMode ? `${API}/${id}` : API;
+      const res = await fetch(url, { method: editMode?'PUT':'POST', headers:H(), body:JSON.stringify(payload) });
+      const json= await res.json();
+      if (!json.success) throw new Error(json.message);
+      showToast(`✅ KYC ${editMode?'updated':'created'}!`, 'success');
+      closeModal(); loadKYC();
+    } catch(err) { showToast(err.message, 'error'); btn.disabled=false; btn.textContent=editMode?'Update KYC':'Save KYC Record'; }
+  }
+
+  async function verifyKYC(id) {
+    if (!confirm('Mark this KYC as Verified?')) return;
+    try {
+      const r = allRecords.find(x=>x.id===id);
+      const res = await fetch(`${API}/${id}`, { method:'PUT', headers:H(), body:JSON.stringify({...r, kyc_status:'Verified'}) });
+      const json= await res.json();
+      if (!json.success) throw new Error(json.message);
+      showToast('✅ KYC Verified!', 'success'); loadKYC();
+    } catch(err) { showToast(err.message, 'error'); }
+  }
+
+  const fmt = n => parseFloat(n||0).toFixed(2);
+  function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;setTimeout(()=>{t.className='';},3500);}
+</script>
+
+<script>
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    if (newTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('theme', newTheme);
+  }
+</script>
+</body>
+</html>

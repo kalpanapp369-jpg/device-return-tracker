@@ -102,21 +102,20 @@ router.post('/auto-fill/:returnId', requireAuth, async (req, res) => {
 
     const r = rows[0];
 
-    // Run both AI calls in parallel
-    const [summary, estimate] = await Promise.all([
-      generateDamageSummary({
-        deviceName:  r.device_name,
-        condition:   r.device_condition,
-        description: r.damage_description,
-        repairCost:  r.repair_cost
-      }),
-      estimateRepairCost({
-        deviceName:  r.device_name,
-        condition:   r.device_condition,
-        description: r.damage_description,
-        purchaseCost:r.purchase_cost
-      })
-    ]);
+    // Run AI calls sequentially to avoid rate limits on free tier
+    const summary = await generateDamageSummary({
+      deviceName:  r.device_name,
+      condition:   r.device_condition,
+      description: r.damage_description,
+      repairCost:  r.repair_cost
+    });
+    
+    const estimate = await estimateRepairCost({
+      deviceName:  r.device_name,
+      condition:   r.device_condition,
+      description: r.damage_description,
+      purchaseCost:r.purchase_cost
+    });
 
     // Save to DB
     await db.query(

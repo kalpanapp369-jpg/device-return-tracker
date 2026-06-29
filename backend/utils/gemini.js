@@ -1,24 +1,27 @@
 require('dotenv').config();
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+let genAI = null;
+let model = null;
+
+try {
+  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+  model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+} catch (e) {
+  console.error("Failed to initialize GoogleGenerativeAI:", e.message);
+}
 
 async function callGemini(prompt) {
-  const res = await fetch(`${GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
-    })
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini API error: ${res.status} — ${err}`);
+  if (!model) {
+    throw new Error('Gemini model is not initialized. Please check your API key.');
   }
 
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  try {
+    const result = await model.generateContent(prompt);
+    return result.response.text();
+  } catch (err) {
+    throw new Error(`Gemini API error: ${err.message}`);
+  }
 }
 
 // ── Feature 1: Generate professional damage summary ───────────────────────────

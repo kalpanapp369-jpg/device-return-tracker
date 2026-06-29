@@ -316,7 +316,7 @@
       btn.textContent = 'Searching...';
 
       try {
-        const res = await fetch(`https://device-return-tracker.onrender.com/api/returns/track/${encodeURIComponent(input)}`);
+        const res = await fetch(`https://device-return-tracker-1.onrender.com/api/returns/track/${encodeURIComponent(input)}`);
         const json = await res.json();
 
         if (!json.success) throw new Error(json.message);

@@ -102,7 +102,7 @@
   }
   function doLogout(){localStorage.clear();window.location.href='login.html';}
   const H = () => ({'Content-Type':'application/json','Authorization':`Bearer ${token}`});
-  const AUTH_API = 'https://device-return-tracker.onrender.com/api/auth';
+  const AUTH_API = 'https://device-return-tracker-1.onrender.com/api/auth';
 
   if (user?.role!=='admin') { document.getElementById('denied-content').style.display='block'; }
   else { document.getElementById('main-content').style.display='block'; loadUsers(); }
